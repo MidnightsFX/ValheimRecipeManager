@@ -23,7 +23,15 @@ namespace RecipeManager
                 if(CheckIfRecipeWasModified(tracked_recipe) == true) { continue; }
 
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Tracked {tracked_recipe.prefab} recipe still has its original recipe in the db. Modifying."); }
-                OperateOnRecipe(tracked_recipe);
+                ApplyRecipeModifcations(tracked_recipe);
+            }
+        }
+
+        public static void RecipeRevert()
+        {
+            foreach (TrackedRecipe tracked_recipe in TrackedRecipes)
+            {
+                ReverseRecipeModifications(tracked_recipe);
             }
         }
 
@@ -38,11 +46,11 @@ namespace RecipeManager
             // Perform the first recipe modification
             foreach (TrackedRecipe tracked_recipe  in TrackedRecipes)
             {
-                OperateOnRecipe(tracked_recipe);
+                ApplyRecipeModifcations(tracked_recipe);
             }
         }
 
-        public static void OperateOnRecipe(TrackedRecipe tracked_recipe)
+        public static void ApplyRecipeModifcations(TrackedRecipe tracked_recipe)
         {
             if (Config.EnableDebugMode.Value) 
             {
@@ -126,6 +134,47 @@ namespace RecipeManager
             if (Config.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe update applied? {update_applied}"); }
         }
 
+        public static void ReverseRecipeModifications(TrackedRecipe tracked_recipe)
+        {
+            bool update_applied = false;
+            // Disable Action
+            if (tracked_recipe.action == DataObjects.Action.Disable)
+            {
+                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting disable for {tracked_recipe.prefab} recipe"); }
+                update_applied = EnableRecipe(tracked_recipe.originalRecipe);
+            }
+
+            // Delete Action
+            if (tracked_recipe.action == DataObjects.Action.Delete)
+            {
+                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting delete for {tracked_recipe.prefab} recipe"); }
+                update_applied = AddRecipe(tracked_recipe.originalRecipe);
+            }
+
+            // Modify Action
+            if (tracked_recipe.action == DataObjects.Action.Modify)
+            {
+                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reversing modify for {tracked_recipe.prefab} recipe"); }
+                update_applied = ModifyRecipeInODB(tracked_recipe.updatedRecipe, tracked_recipe.originalRecipe);
+                ModifyRecipeInJotunnManager(tracked_recipe.updatedCustomRecipe, tracked_recipe.originalCustomRecipe);
+            }
+
+            // Add Action
+            if (tracked_recipe.action == DataObjects.Action.Add)
+            {
+                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting add for {tracked_recipe.prefab} recipe"); }
+                update_applied = DeleteRecipe(tracked_recipe.updatedRecipe);
+            }
+
+            // Enable Action
+            if (tracked_recipe.action == DataObjects.Action.Enable)
+            {
+                update_applied = DisableRecipe(tracked_recipe.originalRecipe);
+            }
+
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe modification reverted? {update_applied}"); }
+        }
+
         public static bool CheckIfRecipeWasModified(TrackedRecipe trackedRecipe)
         {
             int index_of_original_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.originalRecipe);
@@ -138,14 +187,26 @@ namespace RecipeManager
 
         public static void BuildRecipesForTracking()
         {
+            TrackedRecipes.Clear();
             foreach (KeyValuePair<string, RecipeModification>  recipeMod in RecipesToModify)
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing modification details for {recipeMod.Key}"); }
                 TrackedRecipe tRecipeDetails = new TrackedRecipe();
                 tRecipeDetails.action = recipeMod.Value.action;
                 tRecipeDetails.prefab = recipeMod.Value.prefab;
-                if (recipeMod.Value.recipeName != null) { tRecipeDetails.recipeName = recipeMod.Value.recipeName; }
-                int index = RecipeIndexForPrefab(recipeMod.Value.prefab);
+                int index = -1;
+                // Attempt to resolve the recipe by its internal name, if it is provided. This allows multiple modifications to the same recipe or item.
+                if (recipeMod.Value.recipeName != null)
+                {
+                    index = RecipeIndexForRecipeName(recipeMod.Value.recipeName);
+                    tRecipeDetails.recipeName = recipeMod.Value.recipeName;
+                }
+                // fallback to finding the recipe by its prefab if the recipe name is not provided
+                if (index == -1)
+                {
+                    index = RecipeIndexForPrefab(recipeMod.Value.prefab);
+                }
+                
                 if (index > -1)
                 {
                     tRecipeDetails.originalRecipe = ObjectDB.instance.m_recipes[index];
@@ -166,7 +227,7 @@ namespace RecipeManager
                     }
                     CustomRecipe updatedCustomRecipe = new CustomRecipe(new RecipeConfig()
                     {
-                        Name = $"Recipe_{recipeMod.Value.prefab}",
+                        Name = tRecipeDetails.recipeName != null ? tRecipeDetails.recipeName : $"Recipe_{recipeMod.Value.prefab}",
                         Amount = recipeMod.Value.craftAmount,
                         CraftingStation = recipeMod.Value.craftedAt,
                         MinStationLevel = recipeMod.Value.minStationLevel,
@@ -213,6 +274,11 @@ namespace RecipeManager
         public static int RecipeIndexForPrefab(string prefab)
         {
             return ObjectDB.instance.m_recipes.FindIndex(m => m.m_item != null && m.m_item.name == prefab);
+        }
+
+        public static int RecipeIndexForRecipeName(string recipe_name)
+        {
+            return ObjectDB.instance.m_recipes.FindIndex(m => m.name != null && m.name == recipe_name);
         }
 
         public static bool ModifyRecipeInJotunnManager(CustomRecipe recipe, CustomRecipe newRecipe)

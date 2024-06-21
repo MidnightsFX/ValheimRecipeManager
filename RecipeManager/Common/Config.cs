@@ -101,6 +101,7 @@ namespace RecipeManager.Common
 #   AddNewWoodArrowRecipe:
 #     action: Add
 #     prefab: ArrowWood
+#     recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows multiple mutating multiple recipes targeting the same prefab
 #     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
 #     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
 #     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
@@ -208,7 +209,7 @@ namespace RecipeManager.Common
 
         public void SetupConfigRPCs()
         {
-            RecipeConfigRPC = NetworkManager.Instance.AddRPC("monsteryaml_rpc", OnServerRecieveConfigs, OnClientReceiveYamlConfigs);
+            RecipeConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_rpc", OnServerRecieveConfigs, OnClientReceiveYamlConfigs);
             SynchronizationManager.Instance.AddInitialSynchronization(RecipeConfigRPC, SendRecipeConfigs);
         }
 
@@ -230,7 +231,7 @@ namespace RecipeManager.Common
         {
             var yaml = package.ReadString();
             // Just write the updated values to the client. This will trigger an update.
-            using (StreamWriter writetext = new StreamWriter(yaml))
+            using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
             {
                 writetext.WriteLine(yaml);
             }

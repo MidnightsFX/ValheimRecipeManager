@@ -10,6 +10,9 @@ This is a lightweight recipe modification tool. You can define recipes to Add, M
 
 Recipes can be manipulated and added through yaml. All of the existing recipes can also be dumped to a file, in the same format to help you find and understand existing recipes.
 
+<details>
+  <summary>Yaml configuration example</summary>
+
 ```yaml
 #################################################
 # Recipe Manipulation Config
@@ -21,6 +24,7 @@ RecipeModifications:                     # <- This is the top level key, all mod
   AddNewWoodArrowRecipe:
     action: Add
     prefab: ArrowWood
+    recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows multiple mutating multiple recipes targeting the same prefab
     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
@@ -50,6 +54,7 @@ RecipeModifications:                     # <- This is the top level key, all mod
           upgradeCost: 2
           refund: false
 ```
+</details>
 
 ### Commands
 This mod adds two new commands which can be used to speed up recipe modification.
@@ -58,11 +63,110 @@ This mod adds two new commands which can be used to speed up recipe modification
 
 `RecipeManager_PrintAllRecipes` - This prints all recipes currently stored in the object DB (including modifications).
 
+### Examples
+
+Add a craftable chain (replace [Chain-Manager](https://thunderstore.io/c/valheim/p/Digitalroot/Chain_Manager/))
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+recipeModifications:
+  CraftableChainRecipe:
+    action: Add
+    prefab: Chain
+    craftedAt: forge
+    minStationLevel: 4
+    craftAmount: 1
+    recipe:
+      anyOneResource: false
+      ingredients:
+      - prefab: Iron
+        craftCost: 2
+        upgradeCost: 0
+        refund: false
+```
+</details>
+
+Disable recipes you don't want from vanilla or other mods (disable recipes from [Southsil Armors](https://thunderstore.io/c/valheim/p/southsil/SouthsilArmor/) as that mod does not properly support disabling recipes)
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+recipeModifications:
+  DisableNeckHelm:
+    action: Disable
+    prefab: neckhelm
+  DisableNeckChest:
+    action: Disable
+    prefab: neckchest
+  DisableNeckLegs:
+    action: Disable
+    prefab: necklegs
+```
+</details>
+
+Increase the bronze yield (replace [triple bronze](https://thunderstore.io/c/valheim/p/Digitalroot/Triple_Bronze_JVL/))
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+recipeModifications:
+  Recipe_Bronze:
+    action: Modify
+    prefab: Bronze
+    recipeName: Recipe_Bronze
+    craftedAt: forge
+    minStationLevel: 1
+    craftAmount: 3
+    recipe:
+      anyOneResource: false
+      ingredients:
+      - prefab: Copper
+        craftCost: 2
+        upgradeCost: 1
+        refund: true
+      - prefab: Tin
+        craftCost: 1
+        upgradeCost: 1
+        refund: true
+  Recipe_Bronze5:
+    action: Modify
+    prefab: Bronze
+    recipeName: Recipe_Bronze5
+    craftedAt: forge
+    minStationLevel: 1
+    craftAmount: 15
+    recipe:
+      anyOneResource: false
+      ingredients:
+      - prefab: Copper
+        craftCost: 10
+        upgradeCost: 1
+        refund: true
+      - prefab: Tin
+        craftCost: 5
+        upgradeCost: 1
+        refund: true
+```
+</details>
+
+Move a recipe from one crafting station to another (Custom mead from [Honey+](https://thunderstore.io/c/valheim/p/OhhLoz/HoneyPlus/))
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+recipeModifications:
+  custom_item_meadbase_damage:
+    action: Modify
+    prefab: HoneyMeadBaseDamage
+    recipeName: $custom_item_meadbase_damage
+    craftedAt: piece_cauldron
+```
+</details>
+
 ### Planned Features
 - Server sync recipes (re-enable, disable etc)
 - More recipe validation
-- Recipe name referencing
-- automatic rollback for recipes that are no longer edited
 
 
 ## Installation (manual)

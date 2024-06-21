@@ -19,6 +19,7 @@ namespace RecipeManager
 
         public override void Run(string[] args)
         {
+            RecipeUpdater.RecipeRevert();
             // read out the file
             string recipeConfigData = File.ReadAllText(Config.recipeConfigFilePath);
             try {
