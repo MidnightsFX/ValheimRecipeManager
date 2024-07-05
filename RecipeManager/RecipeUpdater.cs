@@ -8,6 +8,7 @@ using Logger = Jotunn.Logger;
 using static RecipeManager.Common.DataObjects;
 using System.Linq;
 using Jotunn.Configs;
+using UnityEngine;
 
 namespace RecipeManager
 {
@@ -107,8 +108,12 @@ namespace RecipeManager
             if (tracked_recipe.action == DataObjects.Action.Modify)
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modify Action called for {tracked_recipe.prefab} recipe"); }
-                update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
-                ModifyRecipeInJotunnManager(tracked_recipe.originalCustomRecipe, tracked_recipe.updatedCustomRecipe);
+                if (ObjectDB.instance.m_recipes.Contains(tracked_recipe.updatedRecipe)) {
+                    update_applied = true;
+                } else {
+                    update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
+                    ModifyRecipeInJotunnManager(tracked_recipe.originalCustomRecipe, tracked_recipe.updatedCustomRecipe);
+                }
             }
 
             // Add Action
@@ -191,6 +196,7 @@ namespace RecipeManager
             foreach (KeyValuePair<string, RecipeModification>  recipeMod in RecipesToModify)
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing modification details for {recipeMod.Key}"); }
+                // if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Data: {recipeMod.Value}"); }
                 TrackedRecipe tRecipeDetails = new TrackedRecipe();
                 tRecipeDetails.action = recipeMod.Value.action;
                 tRecipeDetails.prefab = recipeMod.Value.prefab;
@@ -243,10 +249,31 @@ namespace RecipeManager
                         tRecipeDetails.originalCustomRecipe = targetPrefab.Recipe;
                     }
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Resolving references on custom recipe."); }
-                    CraftingStation craftStation = PrefabManager.Instance.GetPrefab(recipeMod.Value.craftedAt)?.GetComponent<CraftingStation>();
-                    nRecipe.m_repairStation = craftStation;
-                    nRecipe.m_craftingStation = craftStation;
-                    nRecipe.m_item = PrefabManager.Instance.GetPrefab(recipeMod.Value.prefab)?.GetComponent<ItemDrop>();
+                    if (recipeMod.Value.craftedAt != null)
+                    {
+                        try {
+                            CraftingStation craftStation = PrefabManager.Instance.GetPrefab(recipeMod.Value.craftedAt)?.GetComponent<CraftingStation>();
+                            nRecipe.m_repairStation = craftStation;
+                            nRecipe.m_craftingStation = craftStation;
+                        } catch {
+                            Logger.LogWarning($"Crafting station ({recipeMod.Value.craftedAt}) could not be resolved or did not have a craftingStation component");
+                        }
+                    }
+                    try {
+                        GameObject tgo = PrefabManager.Instance.GetPrefab(recipeMod.Value.prefab);
+                        ItemDrop tid = tgo.GetComponent<ItemDrop>();
+                        if (tid != null) { 
+                            nRecipe.m_item = tid;
+                        } else
+                        {
+                            Logger.LogWarning($"Could not find a prefab ({recipeMod.Value.prefab}) GO ({tgo}) with an ItemDrop ({tid}) component to reference. This recipe will not have a target and will be skipped.");
+                            continue;
+                        }
+                    } catch {
+                        Logger.LogWarning($"Could not find a prefab ({recipeMod.Value.prefab}) with an ItemDrop component to reference. This recipe will not have a target and will be skipped.");
+                        continue;
+                    }
+                    
                     nRecipe.name = "Recipe_" + recipeMod.Key;
 
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Resolving resource requirement references."); }

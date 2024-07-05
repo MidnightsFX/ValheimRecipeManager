@@ -1,3 +1,24 @@
+ **0.3.1**
+---
+```
+- Modify ensures the target recipe does not already exist
+```
+
+ **0.3.0**
+---
+```
+- Added more error reporting for common recipe issues
+- Updated example docs
+- Server sync'd recipes are now virtual
+```
+
+ **0.2.0**
+---
+```
+- Improves ways to reference a recipe as handcrafted
+- Added recipe state sychronization on config file server sync
+```
+
  **0.1.3**
 ---
 ```

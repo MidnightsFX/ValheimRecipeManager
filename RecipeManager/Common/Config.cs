@@ -94,7 +94,7 @@ namespace RecipeManager.Common
                     String header = @"#################################################
 # Recipe Manipulation Config
 #################################################
-# RecipeModifications:                     # <- This is the top level key, all modifications live under this, it is required.
+# recipeModifications:                     # <- This is the top level key, all modifications live under this, it is required.
 #   DisableWoodArrow:                      # <- This is the modification name, its primarily for you to understand what this modification does SHOULD BE UNIQUE
 #     action: Disable                      # <- This is the action it should be one of [Disable, Delete, Modify, Add, Enable]
 #     prefab: ArrowWood                    # <- This is the prefab that the modification will target
@@ -143,7 +143,7 @@ namespace RecipeManager.Common
                 var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
                 RecipeUpdater.UpdateRecipeModifications(recipeFileData);
             }
-            catch (Exception e) { Logger.LogWarning($"There was an error updating the RecipeConfig values, defaults will be used. Exception: {e}"); }
+            catch (Exception e) { Logger.LogError($"There was an error updating the RecipeConfig values, defaults will be used. Exception: {e}"); }
 
             // File watcher for the Wildshrines
             FileSystemWatcher wildShrineFSWatcher = new FileSystemWatcher();
@@ -167,15 +167,15 @@ namespace RecipeManager.Common
             {
                 recipeConfigDefs = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeModDefinitions);
             }
-            catch
+            catch (Exception ex)
             {
-                if (EnableDebugMode.Value)
-                {
-                    Logger.LogWarning("RecipeModifications failed deserializing, skipping update.");
-                }
+                Logger.LogError($"RecipeModifications failed deserializing, skipping update: {ex}");
                 return;
             }
+            RecipeUpdater.RecipeRevert();
             RecipeUpdater.UpdateRecipeModifications(recipeConfigDefs);
+            RecipeUpdater.BuildRecipesForTracking();
+            RecipeUpdater.SecondaryRecipeSync();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
             if (GUIManager.IsHeadless())
             {
@@ -184,16 +184,16 @@ namespace RecipeManager.Common
                     RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
                     if (EnableDebugMode.Value) { Logger.LogInfo("Sent levels configs to clients."); }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    Logger.LogError("Error while server syncing recipeModification configs");
+                    Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
                 }
             }
             else
             {
                 if (EnableDebugMode.Value)
                 {
-                    Logger.LogInfo("Instance is not a server, and will not send znet recipeModification updates.");
+                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
                 }
             }
 
@@ -231,10 +231,24 @@ namespace RecipeManager.Common
         {
             var yaml = package.ReadString();
             // Just write the updated values to the client. This will trigger an update.
-            using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
+            //using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
+            //{
+            //    writetext.WriteLine(yaml);
+            //}
+            //string recipeConfigData = File.ReadAllText(Config.recipeConfigFilePath);
+            RecipeUpdater.RecipeRevert();
+            // read out the file
+            try
             {
-                writetext.WriteLine(yaml);
+                var recipeFileData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(yaml);
+                RecipeUpdater.UpdateRecipeModifications(recipeFileData);
             }
+            catch
+            {
+                Logger.LogWarning($"Could not reload the recipe file from disk: {Config.recipeConfigFilePath}");
+            }
+            RecipeUpdater.BuildRecipesForTracking();
+            RecipeUpdater.SecondaryRecipeSync();
             yield return null;
         }
 
