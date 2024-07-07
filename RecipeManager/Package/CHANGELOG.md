@@ -1,3 +1,16 @@
+ **0.3.3**
+---
+```
+- Simplified item add during server handshake post config recieved
+```
+
+ **0.3.2**
+---
+```
+- More eventual consistency checks
+- Add ensures that the recipe does not already exist
+```
+
  **0.3.1**
 ---
 ```

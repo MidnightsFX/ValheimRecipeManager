@@ -65,7 +65,6 @@ namespace RecipeManager
                     Logger.LogInfo($"Applying Updated Recipe: {tracked_recipe.updatedRecipe.name}\n" +
                     $"amount:{tracked_recipe.updatedRecipe.m_amount}\n" +
                     $"enabled:{tracked_recipe.updatedRecipe.m_enabled}\n" +
-                    $"amount:{tracked_recipe.updatedRecipe.m_amount}\n" +
                     $"craftingStation:{tracked_recipe.updatedRecipe.m_craftingStation}\n" +
                     $"reqStationLevel:{tracked_recipe.updatedRecipe.m_minStationLevel}\n" +
                     $"reqOneIngrediant:{tracked_recipe.updatedRecipe.m_requireOnlyOneIngredient}\n" +
@@ -109,6 +108,7 @@ namespace RecipeManager
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modify Action called for {tracked_recipe.prefab} recipe"); }
                 if (ObjectDB.instance.m_recipes.Contains(tracked_recipe.updatedRecipe)) {
+                    DeleteRecipe(tracked_recipe.originalRecipe); // Ensure the original recipe is removed if it still exists, because the modified one has been added
                     update_applied = true;
                 } else {
                     update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
@@ -121,10 +121,6 @@ namespace RecipeManager
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Add Action called for {tracked_recipe.prefab} recipe"); }
                 update_applied = AddRecipe(tracked_recipe.updatedRecipe);
-                if (ItemManager.Instance.GetRecipe(tracked_recipe.recipeName) != null)
-                {
-                    ItemManager.Instance.AddRecipe(tracked_recipe.updatedCustomRecipe);
-                }
             }
 
             // Enable Action
@@ -182,12 +178,28 @@ namespace RecipeManager
 
         public static bool CheckIfRecipeWasModified(TrackedRecipe trackedRecipe)
         {
-            int index_of_original_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.originalRecipe);
-            if (index_of_original_recipe > 0)
+            if (trackedRecipe.action == DataObjects.Action.Modify || trackedRecipe.action == DataObjects.Action.Delete || trackedRecipe.action == DataObjects.Action.Disable)
             {
-                return false;
+                int index_of_original_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.originalRecipe);
+                if (index_of_original_recipe > 0)
+                {
+                    return false;
+                }
             }
-            return true;
+            if (trackedRecipe.action == DataObjects.Action.Add)
+            {
+                int index_of_new_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.updatedRecipe);
+                if (index_of_new_recipe > 0)
+                {
+                    return true;
+                } else
+                {
+                    return false;
+                }
+            }
+
+            //failsafe re-check
+            return false;
         }
 
         public static void BuildRecipesForTracking()
@@ -326,13 +338,6 @@ namespace RecipeManager
             if (index > -1)
             {
                 ObjectDB.instance.m_recipes[index] = newRecipe;
-                //ObjectDB.instance.m_recipes[index].m_enabled = newRecipe.m_enabled;
-                //ObjectDB.instance.m_recipes[index].m_amount = newRecipe.m_amount;
-                //ObjectDB.instance.m_recipes[index].m_resources = newRecipe.m_resources;
-                //ObjectDB.instance.m_recipes[index].m_craftingStation = newRecipe.m_craftingStation;
-                //ObjectDB.instance.m_recipes[index].m_repairStation = newRecipe.m_repairStation;
-                //ObjectDB.instance.m_recipes[index].m_minStationLevel = newRecipe.m_minStationLevel;
-                //ObjectDB.instance.m_recipes[index].m_requireOnlyOneIngredient = newRecipe.m_requireOnlyOneIngredient;
                 return true;
             }
             return false;
