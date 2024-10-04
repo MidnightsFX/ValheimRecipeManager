@@ -106,6 +106,7 @@
   <ItemGroup>
     <Compile Include="Common\Config.cs" />
     <Compile Include="Common\DataObjects.cs" />
+    <Compile Include="PieceUpdater.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
     <Compile Include="RecipeCommands.cs" />
     <Compile Include="RecipeManager.cs" />
