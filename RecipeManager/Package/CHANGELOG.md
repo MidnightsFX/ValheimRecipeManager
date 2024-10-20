@@ -1,7 +1,13 @@
+ **0.3.4**
+---
+```
+- Added guards to do nothing if recipe reload is called when you have no recipes set to modify
+```
+
  **0.3.3**
 ---
 ```
-- Simplified item add during server handshake post config recieved
+- Simplified item add during server handshake post config received
 ```
 
  **0.3.2**

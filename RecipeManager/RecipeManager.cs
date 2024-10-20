@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using Jotunn.Entities;
 using Jotunn.Managers;
 using Jotunn.Utils;
 
@@ -12,7 +11,7 @@ namespace RecipeManager
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.3.3";
+        public const string PluginVersion = "0.3.4";
 
         public Common.Config cfg;
 

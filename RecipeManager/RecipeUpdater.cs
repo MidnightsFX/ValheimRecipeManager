@@ -19,6 +19,9 @@ namespace RecipeManager
 
         public static void SecondaryRecipeSync()
         {
+            // Guard against doing any recipe modifications if there are no recipes to modify
+            if (TrackedRecipes.Count == 0) return;
+
             foreach (TrackedRecipe tracked_recipe in TrackedRecipes)
             {
                 if(CheckIfRecipeWasModified(tracked_recipe) == true) { continue; }
@@ -204,6 +207,7 @@ namespace RecipeManager
 
         public static void BuildRecipesForTracking()
         {
+            if (RecipesToModify.Count == 0) { return; }
             TrackedRecipes.Clear();
             foreach (KeyValuePair<string, RecipeModification>  recipeMod in RecipesToModify)
             {
@@ -322,9 +326,15 @@ namespace RecipeManager
 
         public static bool ModifyRecipeInJotunnManager(CustomRecipe recipe, CustomRecipe newRecipe)
         {
+
             HashSet<CustomRecipe> hashsetRecipes = AccessTools.Field(typeof(ItemManager), "Recipes").GetValue(ItemManager.Instance) as HashSet<CustomRecipe>;
             if (hashsetRecipes != null)
             {
+                if (hashsetRecipes.Contains(newRecipe))
+                {
+                    // Skip the change if the recipe list already contains the requireed entry
+                    return true;
+                }
                 hashsetRecipes.Remove(recipe);
                 hashsetRecipes.Add(newRecipe);
                 return true;

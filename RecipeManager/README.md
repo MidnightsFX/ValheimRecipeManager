@@ -7,7 +7,7 @@ In Valheim a recipe is something that is crafting at a crafting station, or cook
 Building pieces (built with the hammer) are not recipes, furnace conversions (1 ore for 1 ingot etc) are not recipes.
 
 ## Features
-- Disable recipes
+- Add recipes
 - Modify recipes
 - Delete recipes
 - Disable recipes
@@ -32,7 +32,7 @@ recipeModifications:                     # <- This is the top level key, all mod
   AddNewWoodArrowRecipe:
     action: Add
     prefab: ArrowWood
-    recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows multiple mutating multiple recipes targeting the same prefab
+    recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows matching and mutating multiple recipes targeting the same prefab
     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
@@ -107,7 +107,7 @@ recipeModifications:
 ```
 </details>
 
-Disable recipes you don't want from vanilla or other mods (disable recipes from [Southsil Armors](https://thunderstore.io/c/valheim/p/southsil/SouthsilArmor/) as that mod does not properly support disabling recipes)
+Disable recipes you don't want from vanilla or other mods (disable recipes from [Southsil Armors](https://thunderstore.io/c/valheim/p/southsil/SouthsilArmor/))
 <details>
   <summary>Yaml example</summary>
 
