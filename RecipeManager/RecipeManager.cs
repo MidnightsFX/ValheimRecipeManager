@@ -12,7 +12,7 @@ namespace RecipeManager
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.4.0";
 
         public Common.Config cfg;
 
