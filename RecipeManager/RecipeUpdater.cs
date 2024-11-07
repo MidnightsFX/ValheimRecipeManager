@@ -398,5 +398,17 @@ namespace RecipeManager
             }
         }
 
+        public static void UpdateRecipeModificationsFromList(List<RecipeModificationCollection> lRecipeMods)
+        {
+            RecipesToModify.Clear();
+            foreach(RecipeModificationCollection rcol in lRecipeMods)
+            {
+                foreach (KeyValuePair<String, RecipeModification> entry in rcol.RecipeModifications)
+                {
+                    RecipesToModify.Add(entry.Key, entry.Value);
+                }
+            }
+        }
+
     }
 }

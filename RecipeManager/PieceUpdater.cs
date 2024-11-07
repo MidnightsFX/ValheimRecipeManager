@@ -43,7 +43,7 @@ namespace RecipeManager
             }
         }
 
-        private static void RevertPieceModifications()
+        public static void RevertPieceModifications()
         {
             foreach (TrackedPiece piece in TrackedPieces)
             {
@@ -183,6 +183,27 @@ namespace RecipeManager
                 tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
                 tpiece.ExtraPlacementSpaceRequired = piece.Value.ExtraPlacementSpaceRequired;
                 tpiece.GroundPlacement = piece.Value.GroundPlacement;
+            }
+        }
+
+        public static void UpdateRecipeModificationsFromList(List<PieceModificationCollection> lPieceMods)
+        {
+            PiecesToModify.Clear();
+            foreach (PieceModificationCollection rcol in lPieceMods)
+            {
+                foreach (KeyValuePair<String, PieceModification> entry in rcol.PieceModifications)
+                {
+                    PiecesToModify.Add(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        public static void UpdateRecipeModifications(PieceModificationCollection PieceMods)
+        {
+            PiecesToModify.Clear();
+            foreach (KeyValuePair<String, PieceModification> entry in PieceMods.PieceModifications)
+            {
+                PiecesToModify.Add(entry.Key, entry.Value);
             }
         }
     }
