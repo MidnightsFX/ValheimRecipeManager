@@ -1,3 +1,10 @@
+ **0.3.4**
+---
+```
+- Bog Witch Update
+- Jotunn Updated to 2.21.2
+```
+
  **0.3.1**
 ---
 ```
