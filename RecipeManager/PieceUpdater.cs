@@ -40,6 +40,9 @@ namespace RecipeManager
                 case PieceAction.Modify:
                     ModifyPiece(piece);
                     break;
+                case PieceAction.Enable:
+                    EnablePiece(piece);
+                    break;
             }
         }
 
@@ -49,6 +52,13 @@ namespace RecipeManager
             {
                 RevertPiece(piece);
             }
+        }
+
+        public static void EnablePiece(TrackedPiece piece)
+        {
+            // Might need to do this for all pieces with the full name
+            GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
+            go.GetComponent<Piece>().m_enabled = true;
         }
 
         private static void RevertPiece(TrackedPiece tpiece)

@@ -23,7 +23,8 @@ namespace RecipeManager.Common
         public enum PieceAction
         {
             Disable,
-            Modify
+            Modify,
+            Enable
         }
 
         public class TrackedPiece
