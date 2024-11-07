@@ -9,6 +9,7 @@ using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 using Logger = Jotunn.Logger;
 using static RecipeManager.Common.DataObjects;
+using System.Collections.Generic;
 
 namespace RecipeManager.Common
 {
@@ -18,10 +19,14 @@ namespace RecipeManager.Common
         public static ConfigEntry<bool> EnableDebugMode;
 
         public static String recipeConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Recipes.yaml");
+        public static List<string> RecipeConfigFilePaths = new List<string>();
+        public static String pieceConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Pieces.yaml");
+        public static List<string> PieceConfigFilePaths = new List<string>();
         public static IDeserializer yamldeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
         public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).DisableAliases().Build();
 
         private static CustomRPC RecipeConfigRPC;
+        private static CustomRPC PiecesConfigRPC;
 
         public Config(ConfigFile cfgref)
         {
@@ -74,6 +79,7 @@ namespace RecipeManager.Common
         {
             string externalConfigFolder = GetSecondaryConfigDirectoryPath();
             bool hasRecipeConfig = false;
+            bool hasPieceConfig = false;
 
             string[] presentFiles = Directory.GetFiles(externalConfigFolder);
 
@@ -82,10 +88,18 @@ namespace RecipeManager.Common
                 if (configFile.Contains("Recipes.yaml"))
                 {
                     if (EnableDebugMode.Value) { Logger.LogInfo($"Found recipe configuration yaml: {configFile}"); }
-                    recipeConfigFilePath = configFile;
+                    RecipeConfigFilePaths.Add(configFile);
                     hasRecipeConfig = true;
                 }
+                if (configFile.Contains("Pieces.yaml"))
+                {
+                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found pieces configuration yaml: {configFile}"); }
+                    PieceConfigFilePaths.Add(configFile);
+                    hasPieceConfig = true;
+                }
             }
+
+            // write out the recipe config defaults if they do not exist
             if (hasRecipeConfig == false)
             {
                 Logger.LogInfo("Recipe file missing, recreating.");
@@ -136,68 +150,120 @@ namespace RecipeManager.Common
                     writetext.WriteLine(YamlRecipeConfigDefinition());
                 }
             }
-            // read out the file
-            string recipeConfigData = File.ReadAllText(recipeConfigFilePath);
-            try
-            {
-                var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-            }
-            catch (Exception e) { Logger.LogError($"There was an error updating the RecipeConfig values, defaults will be used. Exception: {e}"); }
 
-            // File watcher for the Wildshrines
-            FileSystemWatcher wildShrineFSWatcher = new FileSystemWatcher();
-            wildShrineFSWatcher.Path = externalConfigFolder;
-            wildShrineFSWatcher.NotifyFilter = NotifyFilters.LastWrite;
-            wildShrineFSWatcher.Filter = "WildShrines.yaml";
-            wildShrineFSWatcher.Changed += new FileSystemEventHandler(UpdateRecipeConfigFileOnChange);
-            wildShrineFSWatcher.Created += new FileSystemEventHandler(UpdateRecipeConfigFileOnChange);
-            wildShrineFSWatcher.Renamed += new RenamedEventHandler(UpdateRecipeConfigFileOnChange);
-            wildShrineFSWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-            wildShrineFSWatcher.EnableRaisingEvents = true;
+            // write out the piece config defaults if they do not exist
+            if (hasPieceConfig == false)
+            {
+                Logger.LogInfo("Pieces file missing, recreating.");
+                using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
+                {
+                    // Write the header here too
+                    writetext.WriteLine(YamlPieceConfigDefinition());
+                }
+            }
+
+            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
+
+            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
+                try
+                {
+                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
+                    allRecipeData.Add(recipeFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {e}"); }
+
+                // File watcher for the recipe
+                FileSystemWatcher recipeFW = new FileSystemWatcher();
+                recipeFW.Path = externalConfigFolder;
+                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
+                recipeFW.Filter = $"{secondaryRecipeFile}";
+                recipeFW.Changed += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.Created += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.Renamed += new RenamedEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+                recipeFW.EnableRaisingEvents = true;
+            }
+            RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
+
+            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
+
+            foreach (var secondaryPieceFile in PieceConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
+                try
+                {
+                    var recipeFileData = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
+                    allPieceData.Add(recipeFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
+
+                // File watcher for the recipe
+                FileSystemWatcher recipeFW = new FileSystemWatcher();
+                recipeFW.Path = externalConfigFolder;
+                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
+                recipeFW.Filter = $"{secondaryPieceFile}";
+                recipeFW.Changed += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.Created += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.Renamed += new RenamedEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+                recipeFW.EnableRaisingEvents = true;
+            }
+            RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
         }
 
-        private static void UpdateRecipeConfigFileOnChange(object sender, FileSystemEventArgs e)
+        private static void UpdateRecipeConfigFilesOnChange(object sender, FileSystemEventArgs e)
         {
             if (!File.Exists(recipeConfigFilePath)) { return; }
             if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Recipe filewatcher called, updating recipe Modification values."); }
-            string recipeModDefinitions = File.ReadAllText(recipeConfigFilePath);
-            RecipeModificationCollection recipeConfigDefs;
-            try
-            {
-                recipeConfigDefs = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeModDefinitions);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"RecipeModifications failed deserializing, skipping update: {ex}");
-                return;
-            }
             RecipeUpdater.RecipeRevert();
-            RecipeUpdater.UpdateRecipeModifications(recipeConfigDefs);
+            RecipeUpdater.UpdateRecipeModifications(ReadAllRecipeConfigs());
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
-            if (GUIManager.IsHeadless())
-            {
-                try
-                {
+            if (GUIManager.IsHeadless()) {
+                try {
                     RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
-                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent levels configs to clients."); }
-                }
-                catch (Exception ex)
-                {
+                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent recipe configs to clients."); }
+                } catch (Exception ex) {
                     Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
                 }
+            } else {
+                if (EnableDebugMode.Value) {
+                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
+                }
             }
-            else
-            {
-                if (EnableDebugMode.Value)
-                {
+        }
+
+        private static void UpdatePieceConfigFilesOnChange(object sender, FileSystemEventArgs e)
+        {
+            if (!File.Exists(pieceConfigFilePath)) { return; }
+            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Piece filewatcher called, updating piece Modification values."); }
+            PieceUpdater.RevertPieceModifications();
+            PieceUpdater.UpdateRecipeModifications(ReadAllPieceConfigs());
+            PieceUpdater.BuildPieceTracker();
+            PieceUpdater.PieceUpdateRunner();
+            if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
+            if (GUIManager.IsHeadless()) {
+                try {
+                    RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
+                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent levels configs to clients."); }
+                } catch (Exception ex) {
+                    Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
+                }
+            } else {
+                if (EnableDebugMode.Value) {
                     Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
                 }
             }
 
         }
+
 
         public static string GetSecondaryConfigDirectoryPath()
         {
@@ -209,8 +275,10 @@ namespace RecipeManager.Common
 
         public void SetupConfigRPCs()
         {
-            RecipeConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_rpc", OnServerRecieveConfigs, OnClientReceiveYamlConfigs);
+            RecipeConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_recipes_rpc", OnServerRecieveConfigs, OnClientReceiveRecipeConfigs);
             SynchronizationManager.Instance.AddInitialSynchronization(RecipeConfigRPC, SendRecipeConfigs);
+            PiecesConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_pieces_rpc", OnServerRecieveConfigs, OnClientReceivePieceConfigs);
+            SynchronizationManager.Instance.AddInitialSynchronization(PiecesConfigRPC, SendPieceConfigs);
         }
 
         public static IEnumerator OnServerRecieveConfigs(long sender, ZPackage package)
@@ -221,34 +289,101 @@ namespace RecipeManager.Common
 
         private static ZPackage SendRecipeConfigs()
         {
-            string spawnableCreatureConfigs = File.ReadAllText(recipeConfigFilePath);
             ZPackage package = new ZPackage();
-            package.Write(spawnableCreatureConfigs);
+            package.Write(ReadAllRecipeConfigs().ToString());
             return package;
         }
 
-        private static IEnumerator OnClientReceiveYamlConfigs(long sender, ZPackage package)
+        private static ZPackage SendPieceConfigs()
+        {
+            ZPackage package = new ZPackage();
+            package.Write(ReadAllPieceConfigs().ToString());
+            return package;
+        }
+
+        private static RecipeModificationCollection ReadAllRecipeConfigs()
+        {
+            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
+
+            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
+                try
+                {
+                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
+                    allRecipeData.Add(recipeFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception ex) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {ex}"); }
+            }
+            RecipeModificationCollection allRecipeModifications = new RecipeModificationCollection();
+
+            foreach (RecipeModificationCollection rcol in allRecipeData)
+            {
+                foreach (KeyValuePair<String, RecipeModification> entry in rcol.RecipeModifications)
+                {
+                    allRecipeModifications.RecipeModifications.Add(entry.Key, entry.Value);
+                }
+            }
+            return allRecipeModifications;
+        }
+
+        private static PieceModificationCollection ReadAllPieceConfigs()
+        {
+            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
+
+            foreach (var pieceFile in PieceConfigFilePaths)
+            {
+                // read out the file
+                string pieceConfigData = File.ReadAllText(pieceFile);
+                try
+                {
+                    var recipeFileData = yamldeserializer.Deserialize<PieceModificationCollection>(pieceConfigData);
+                    allPieceData.Add(recipeFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception ex) { Logger.LogError($"There was an error reading recipe data from {pieceFile}, it will not be used. Error: {ex}"); }
+            }
+            PieceModificationCollection allRecipeModifications = new PieceModificationCollection();
+
+            foreach (PieceModificationCollection rcol in allPieceData)
+            {
+                foreach (KeyValuePair<String, PieceModification> entry in rcol.PieceModifications)
+                {
+                    allRecipeModifications.PieceModifications.Add(entry.Key, entry.Value);
+                }
+            }
+            return allRecipeModifications;
+        }
+
+        private static IEnumerator OnClientReceiveRecipeConfigs(long sender, ZPackage package)
         {
             var yaml = package.ReadString();
-            // Just write the updated values to the client. This will trigger an update.
-            //using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
-            //{
-            //    writetext.WriteLine(yaml);
-            //}
-            //string recipeConfigData = File.ReadAllText(Config.recipeConfigFilePath);
             RecipeUpdater.RecipeRevert();
-            // read out the file
-            try
-            {
+            try {
                 var recipeFileData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(yaml);
                 RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-            }
-            catch
-            {
-                Logger.LogWarning($"Could not reload the recipe file from disk: {Config.recipeConfigFilePath}");
+            } catch {
+                Logger.LogWarning($"Recieved invalid configuration, all recipes reverted.");
             }
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
+            yield return null;
+        }
+
+        private static IEnumerator OnClientReceivePieceConfigs(long sender, ZPackage package)
+        {
+            var yaml = package.ReadString();
+            PieceUpdater.RevertPieceModifications();
+            try {
+                var recipeFileData = Config.yamldeserializer.Deserialize<PieceModificationCollection>(yaml);
+                PieceUpdater.UpdateRecipeModifications(recipeFileData);
+            } catch {
+                Logger.LogWarning($"Recieved invalid configuration, all pieces reverted.");
+            }
+            PieceUpdater.BuildPieceTracker();
+            PieceUpdater.PieceUpdateRunner();
             yield return null;
         }
 
@@ -257,6 +392,14 @@ namespace RecipeManager.Common
             var recipeCollection = new RecipeModificationCollection();
             recipeCollection.RecipeModifications = RecipeUpdater.RecipesToModify;
             var yaml = yamlserializer.Serialize(recipeCollection);
+            return yaml;
+        }
+
+        public static string YamlPieceConfigDefinition()
+        {
+            var pieceCollection = new PieceModificationCollection();
+            pieceCollection.PieceModifications = PieceUpdater.PiecesToModify;
+            var yaml = yamlserializer.Serialize(pieceCollection);
             return yaml;
         }
 

@@ -32,6 +32,22 @@ namespace RecipeManager.Common
             public string prefab {  get; set; }
             public Piece originalPiece { get; set; }
             public Requirement[] updatedRequirements { get; set; }
+            public CraftingStation RequiredToPlaceCraftingStation { get; set; }
+            public bool AllowedInDungeon { get; set; } = false;
+            public bool CanBeDeconstructed { get; set; } = true;
+            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
+            public int ComfortAmount { get; set; } = -1;
+            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
+            public Piece UpgradeFor {  get; set; }
+            public float CraftingStationConnectionRadius { get; set; } = -1f;
+            public bool MustBeAvobeConnectedStation { get; set; } = false;
+            public int ExtraPlacementSpaceRequired { get; set; } = -1;
+            public string PieceName { get; set; }
+            public string PieceDescription { get; set; }
+            public bool EnablePiece { get; set; } = true;
+            public Heightmap.Biome OnlyInBiome { get; set; } = Heightmap.Biome.All;
+            public bool CultivatedGroundOnly { get; set; } = false;
+            public bool GroundPlacement { get; set; } = true;
         }
 
         [DataContract]
@@ -46,6 +62,22 @@ namespace RecipeManager.Common
             public PieceAction action { get; set; }
             public string prefab { get; set; }
             public List<SimpleRequirement> requirements { get; set; } = new List<SimpleRequirement>();
+            public String RequiredToPlaceCraftingStation { get; set;}
+            public bool AllowedInDungeon { get; set; } = false;
+            public bool CanBeDeconstructed { get; set; } = true;
+            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
+            public int ComfortAmount { get; set; } = -1;
+            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
+            public string UpgradeFor { get; set; }
+            public float CraftingStationConnectionRadius { get; set; } = -1f;
+            public bool MustBeAvobeConnectedStation { get; set; } = false;
+            public int ExtraPlacementSpaceRequired { get; set; } = -1;
+            public string PieceName { get; set; }
+            public string PieceDescription { get; set; }
+            public bool EnablePiece { get; set; } = true;
+            public Heightmap.Biome OnlyInSelectBiome { get; set; } = Heightmap.Biome.All;
+            public bool CultivatedGroundOnly { get; set; } = false;
+            public bool GroundPlacement {  get; set; } = true;
         }
 
         [DataContract]

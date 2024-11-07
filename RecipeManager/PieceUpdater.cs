@@ -20,6 +20,7 @@ namespace RecipeManager
         public static void InitialSychronization()
         {
             BuildPieceTracker();
+            PieceUpdateRunner();
         }
 
         public static void PieceUpdateRunner()
@@ -42,14 +43,75 @@ namespace RecipeManager
             }
         }
 
+        public static void RevertPieceModifications()
+        {
+            foreach (TrackedPiece piece in TrackedPieces)
+            {
+                RevertPiece(piece);
+            }
+        }
+
+        private static void RevertPiece(TrackedPiece tpiece)
+        {
+            GameObject go = PrefabManager.Instance.GetPrefab(tpiece.prefab);
+            Piece pcomp = go.GetComponent<Piece>();
+            pcomp = tpiece.originalPiece;
+        }
+
         private static void ModifyPiece(TrackedPiece piece)
         {
-            // Might need to do this for all pieces with the full name
+            // Might need to do this for all pieces with the full name, including clones
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             Piece pcomp = go.GetComponent<Piece>();
             if (pcomp != null) 
             {
-                pcomp.m_resources = piece.updatedRequirements;
+                if (piece.updatedRequirements != null)
+                {
+                    pcomp.m_resources = piece.updatedRequirements;
+                }
+                if (piece.RequiredToPlaceCraftingStation != null)
+                {
+                    pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation;
+                }
+                pcomp.m_allowedInDungeons = piece.AllowedInDungeon;
+                pcomp.m_canBeRemoved = piece.CanBeDeconstructed;
+                if (piece.PieceCategory != Piece.PieceCategory.All)
+                {
+                    pcomp.m_category = piece.PieceCategory;
+                }
+                if (piece.ComfortAmount != -1)
+                {
+                    pcomp.m_comfort = piece.ComfortAmount;
+                }
+                if (piece.ComfortGroup != Piece.ComfortGroup.None)
+                {
+                    pcomp.m_comfortGroup = piece.ComfortGroup;
+                }
+                if (piece.CraftingStationConnectionRadius != -1)
+                {
+                    pcomp.m_connectRadius = piece.CraftingStationConnectionRadius;
+                }
+                if (piece.PieceDescription != null)
+                {
+                    pcomp.m_description = piece.PieceDescription;
+                }
+                pcomp.m_enabled = piece.EnablePiece;
+
+                if (piece.PieceName != null) {
+                    pcomp.m_name = piece.PieceName;
+                }
+                pcomp.m_onlyInBiome = piece.OnlyInBiome;
+                if (piece.UpgradeFor != null) {
+                    pcomp.m_isUpgrade = piece.UpgradeFor;
+                }
+                pcomp.m_cultivatedGroundOnly = piece.CultivatedGroundOnly;
+                pcomp.m_mustBeAboveConnected = piece.MustBeAvobeConnectedStation;
+                if (piece.ExtraPlacementSpaceRequired != -1)
+                {
+                    pcomp.m_extraPlacementDistance = piece.ExtraPlacementSpaceRequired;
+                }
+                pcomp.m_groundPiece = piece.GroundPlacement;
+                // pcomp
             }
         }
 
@@ -87,6 +149,61 @@ namespace RecipeManager
                     }
                 }
                 tpiece.updatedRequirements = updatedreq;
+
+                if (piece.Value.RequiredToPlaceCraftingStation != null && piece.Value.RequiredToPlaceCraftingStation != "")
+                {
+                    CraftingStation craftStation = PrefabManager.Instance.GetPrefab(piece.Value.RequiredToPlaceCraftingStation)?.GetComponent<CraftingStation>();
+                    if (craftStation != null)
+                    {
+                        tpiece.RequiredToPlaceCraftingStation = craftStation;
+                    }
+                    else
+                    {
+                        Logger.LogWarning($"Could not link required crafting station, are you sure a crafting station exists with piecename: {craftStation}");
+                    }
+                }
+                if (piece.Value.UpgradeFor != null)
+                {
+                    Piece upgrade_for_piece = PrefabManager.Instance.GetPrefab(piece.Value.UpgradeFor)?.GetComponent<Piece>();
+                    if (upgrade_for_piece != null)
+                    {
+                        tpiece.UpgradeFor = upgrade_for_piece;
+                    }
+                }
+
+                tpiece.AllowedInDungeon = piece.Value.AllowedInDungeon;
+                tpiece.CanBeDeconstructed = piece.Value.CanBeDeconstructed;
+                tpiece.ComfortAmount = piece.Value.ComfortAmount;
+                tpiece.ComfortGroup = piece.Value.ComfortGroup;
+                tpiece.CraftingStationConnectionRadius = piece.Value.CraftingStationConnectionRadius;
+                tpiece.PieceDescription = piece.Value.PieceDescription;
+                tpiece.PieceName = piece.Value.PieceName;
+                tpiece.EnablePiece = piece.Value.EnablePiece;
+                tpiece.CultivatedGroundOnly = piece.Value.CultivatedGroundOnly;
+                tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
+                tpiece.ExtraPlacementSpaceRequired = piece.Value.ExtraPlacementSpaceRequired;
+                tpiece.GroundPlacement = piece.Value.GroundPlacement;
+            }
+        }
+
+        public static void UpdateRecipeModificationsFromList(List<PieceModificationCollection> lPieceMods)
+        {
+            PiecesToModify.Clear();
+            foreach (PieceModificationCollection rcol in lPieceMods)
+            {
+                foreach (KeyValuePair<String, PieceModification> entry in rcol.PieceModifications)
+                {
+                    PiecesToModify.Add(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        public static void UpdateRecipeModifications(PieceModificationCollection PieceMods)
+        {
+            PiecesToModify.Clear();
+            foreach (KeyValuePair<String, PieceModification> entry in PieceMods.PieceModifications)
+            {
+                PiecesToModify.Add(entry.Key, entry.Value);
             }
         }
     }
