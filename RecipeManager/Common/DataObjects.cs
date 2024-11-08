@@ -39,10 +39,10 @@ namespace RecipeManager.Common
             public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
             public int ComfortAmount { get; set; } = -1;
             public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
-            public Piece UpgradeFor {  get; set; }
+            public bool IsUpgradeForStation {  get; set; }
             public float CraftingStationConnectionRadius { get; set; } = -1f;
             public bool MustBeAvobeConnectedStation { get; set; } = false;
-            public int ExtraPlacementSpaceRequired { get; set; } = -1;
+            public float SpaceRequired { get; set; } = -1;
             public string PieceName { get; set; }
             public string PieceDescription { get; set; }
             public bool EnablePiece { get; set; } = true;
@@ -69,10 +69,10 @@ namespace RecipeManager.Common
             public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
             public int ComfortAmount { get; set; } = -1;
             public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
-            public string UpgradeFor { get; set; }
+            public bool IsUpgradeForStation { get; set; }
             public float CraftingStationConnectionRadius { get; set; } = -1f;
             public bool MustBeAvobeConnectedStation { get; set; } = false;
-            public int ExtraPlacementSpaceRequired { get; set; } = -1;
+            public float SpaceRequired { get; set; } = -1;
             public string PieceName { get; set; }
             public string PieceDescription { get; set; }
             public bool EnablePiece { get; set; } = true;

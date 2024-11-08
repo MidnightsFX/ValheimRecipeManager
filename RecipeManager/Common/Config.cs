@@ -155,7 +155,7 @@ namespace RecipeManager.Common
             if (hasPieceConfig == false)
             {
                 Logger.LogInfo("Pieces file missing, recreating.");
-                using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
+                using (StreamWriter writetext = new StreamWriter(pieceConfigFilePath))
                 {
                     // Write the header here too
                     writetext.WriteLine(YamlPieceConfigDefinition());
@@ -180,7 +180,7 @@ namespace RecipeManager.Common
                 FileSystemWatcher recipeFW = new FileSystemWatcher();
                 recipeFW.Path = externalConfigFolder;
                 recipeFW.NotifyFilter = NotifyFilters.LastWrite;
-                recipeFW.Filter = $"{secondaryRecipeFile}";
+                recipeFW.Filter = $"{DetermineFileName(secondaryRecipeFile)}";
                 recipeFW.Changed += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
                 recipeFW.Created += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
                 recipeFW.Renamed += new RenamedEventHandler(UpdateRecipeConfigFilesOnChange);
@@ -202,19 +202,27 @@ namespace RecipeManager.Common
                     //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
                 }
                 catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
-
                 // File watcher for the recipe
                 FileSystemWatcher recipeFW = new FileSystemWatcher();
                 recipeFW.Path = externalConfigFolder;
                 recipeFW.NotifyFilter = NotifyFilters.LastWrite;
-                recipeFW.Filter = $"{secondaryPieceFile}";
-                recipeFW.Changed += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
-                recipeFW.Created += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
-                recipeFW.Renamed += new RenamedEventHandler(UpdateRecipeConfigFilesOnChange);
+                recipeFW.Filter = $"{DetermineFileName(secondaryPieceFile)}";
+                recipeFW.Changed += new FileSystemEventHandler(UpdatePieceConfigFilesOnChange);
+                recipeFW.Created += new FileSystemEventHandler(UpdatePieceConfigFilesOnChange);
+                recipeFW.Renamed += new RenamedEventHandler(UpdatePieceConfigFilesOnChange);
                 recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
                 recipeFW.EnableRaisingEvents = true;
             }
             RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
+        }
+
+        private static string DetermineFileName(string fullfilepath)
+        {
+            string filename = "";
+            string[] split_filepath = fullfilepath.Split('\\');
+            // zero based and the last item
+            filename = split_filepath[split_filepath.Length - 2];
+            return filename;
         }
 
         private static void UpdateRecipeConfigFilesOnChange(object sender, FileSystemEventArgs e)
@@ -307,6 +315,7 @@ namespace RecipeManager.Common
 
             foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
             {
+                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {secondaryRecipeFile}."); }
                 // read out the file
                 string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
                 try
@@ -335,6 +344,7 @@ namespace RecipeManager.Common
 
             foreach (var pieceFile in PieceConfigFilePaths)
             {
+                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {pieceFile}."); }
                 // read out the file
                 string pieceConfigData = File.ReadAllText(pieceFile);
                 try
@@ -343,7 +353,7 @@ namespace RecipeManager.Common
                     allPieceData.Add(recipeFileData);
                     //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
                 }
-                catch (Exception ex) { Logger.LogError($"There was an error reading recipe data from {pieceFile}, it will not be used. Error: {ex}"); }
+                catch (Exception ex) { Logger.LogError($"There was an error reading piece data from {pieceFile}, it will not be used. Error: {ex}"); }
             }
             PieceModificationCollection allRecipeModifications = new PieceModificationCollection();
 

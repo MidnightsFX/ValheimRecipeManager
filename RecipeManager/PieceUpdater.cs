@@ -111,14 +111,12 @@ namespace RecipeManager
                     pcomp.m_name = piece.PieceName;
                 }
                 pcomp.m_onlyInBiome = piece.OnlyInBiome;
-                if (piece.UpgradeFor != null) {
-                    pcomp.m_isUpgrade = piece.UpgradeFor;
-                }
+                pcomp.m_isUpgrade = piece.IsUpgradeForStation;
                 pcomp.m_cultivatedGroundOnly = piece.CultivatedGroundOnly;
                 pcomp.m_mustBeAboveConnected = piece.MustBeAvobeConnectedStation;
-                if (piece.ExtraPlacementSpaceRequired != -1)
+                if (piece.SpaceRequired != -1)
                 {
-                    pcomp.m_extraPlacementDistance = piece.ExtraPlacementSpaceRequired;
+                    pcomp.m_spaceRequirement = piece.SpaceRequired;
                 }
                 pcomp.m_groundPiece = piece.GroundPlacement;
                 // pcomp
@@ -172,15 +170,8 @@ namespace RecipeManager
                         Logger.LogWarning($"Could not link required crafting station, are you sure a crafting station exists with piecename: {craftStation}");
                     }
                 }
-                if (piece.Value.UpgradeFor != null)
-                {
-                    Piece upgrade_for_piece = PrefabManager.Instance.GetPrefab(piece.Value.UpgradeFor)?.GetComponent<Piece>();
-                    if (upgrade_for_piece != null)
-                    {
-                        tpiece.UpgradeFor = upgrade_for_piece;
-                    }
-                }
 
+                tpiece.IsUpgradeForStation = piece.Value.IsUpgradeForStation;
                 tpiece.AllowedInDungeon = piece.Value.AllowedInDungeon;
                 tpiece.CanBeDeconstructed = piece.Value.CanBeDeconstructed;
                 tpiece.ComfortAmount = piece.Value.ComfortAmount;
@@ -191,7 +182,7 @@ namespace RecipeManager
                 tpiece.EnablePiece = piece.Value.EnablePiece;
                 tpiece.CultivatedGroundOnly = piece.Value.CultivatedGroundOnly;
                 tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
-                tpiece.ExtraPlacementSpaceRequired = piece.Value.ExtraPlacementSpaceRequired;
+                tpiece.SpaceRequired = piece.Value.SpaceRequired;
                 tpiece.GroundPlacement = piece.Value.GroundPlacement;
             }
         }

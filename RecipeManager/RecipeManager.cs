@@ -20,11 +20,16 @@ namespace RecipeManager
             cfg = new Common.Config(Config);
             // Update the list of Recipes to track, update etc each time the object db is re-init'd
             ItemManager.OnItemsRegistered += RecipeUpdater.InitialRecipesAndSynchronize;
+            ItemManager.OnItemsRegistered += PieceUpdater.InitialSychronization;
             MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
+            MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
             // Jotunn.Logger.LogInfo("Recipe Updater Loaded.");
 
             CommandManager.Instance.AddConsoleCommand(new RecipeReloadCommand());
             CommandManager.Instance.AddConsoleCommand(new RecipePrintCommand());
+
+            CommandManager.Instance.AddConsoleCommand(new PiecePrintCommand());
+            CommandManager.Instance.AddConsoleCommand(new PieceReloadCommand());
         }
 
     }
