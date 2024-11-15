@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
 using Logger = Jotunn.Logger;
@@ -21,18 +22,38 @@ namespace RecipeManager
 
         public override void Run(string[] args)
         {
-            RecipeUpdater.RecipeRevert();
-            // read out the file
-            string pieceConfigData = File.ReadAllText(Config.pieceConfigFilePath);
-            try
-            {
-                var pieceDeserializedData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(pieceConfigData);
-                RecipeUpdater.UpdateRecipeModifications(pieceDeserializedData);
-            }
-            catch
-            {
-                Logger.LogWarning($"Could not reload the pieces file from disk: {Config.recipeConfigFilePath}");
-            }
+            PieceUpdater.RevertPieceModifications();
+            Config.ReloadPieceFiles();
+            PieceUpdater.BuildPieceTracker();
+            PieceUpdater.PieceUpdateRunner();
+        }
+    }
+
+    internal class PieceUnapplyModifications : ConsoleCommand
+    {
+        public override string Name => "RM_Pieces_Revert";
+
+        public override string Help => "Disables piece modifications.";
+
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
+        {
+            PieceUpdater.RevertPieceModifications();
+        }
+    }
+
+    internal class PieceApplyModifications : ConsoleCommand
+    {
+        public override string Name => "RM_Pieces_Apply";
+
+        public override string Help => "Applies piece modifications. This is only needed if you have reverted piece modifications.";
+
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
+        {
+            Config.ReloadPieceFiles();
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
         }
@@ -53,14 +74,13 @@ namespace RecipeManager
             using (StreamWriter writetext = new StreamWriter(ODBRecipes_path))
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo("Gathering Pieces"); }
-                List<Piece> pieces = Resources.FindObjectsOfTypeAll<Piece>().Where(pc => pc.name.EndsWith("(Clone)") != true).ToList<Piece>();
+                List<Piece> pieces = Resources.FindObjectsOfTypeAll<Piece>().Where(pc => pc.name.EndsWith("(Clone)") != true && Regex.IsMatch(pc.name.Trim(), @"\(\d+\)") != true ).ToList<Piece>();
 
                 foreach (Piece pc in pieces)
                 {
                     if (pc == null) { continue; }
                     if (pc.name == null) { continue; }
                     // This list of just broken recipes
-                    // if (recipe.name == "Recipe_Adze") { continue; }
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Building Recipe {pc.m_name}"); }
                     PieceModification piece_as_mod = new PieceModification();
 
@@ -122,26 +142,12 @@ namespace RecipeManager
                     }
                     piece_as_mod.requirements = requirements;
 
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Adding {piece_as_mod.PieceName} to collection."); }
-                    if (recipeCollection.PieceModifications.ContainsKey(piece_as_mod.PieceName))
-                    {
-                        try
-                        {
-                            int randtag = UnityEngine.Random.Range(0, 1000);
-                            recipeCollection.PieceModifications.Add(piece_as_mod.PieceName + $"_{randtag}", piece_as_mod);
-                            Logger.LogWarning($"{piece_as_mod.PieceName} was already added to the list of recipes and will be renamed {piece_as_mod.PieceName}_{randtag}, please use unique piece modification names.");
-                        }
-                        catch
-                        {
-                            Logger.LogWarning($"{piece_as_mod.PieceName} was already added to the list of recipes and will be skipped, please use unique recipe names.");
-                        }
-                    }
-                    else
-                    {
-                        recipeCollection.PieceModifications.Add(piece_as_mod.PieceName, piece_as_mod);
+                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Adding {piece_as_mod.prefab} to collection."); }
+                    if (!recipeCollection.PieceModifications.ContainsKey(piece_as_mod.prefab)) {
+                        recipeCollection.PieceModifications.Add(piece_as_mod.prefab, piece_as_mod);
                     }
 
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Piece {piece_as_mod.PieceName} Added."); }
+                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Piece {piece_as_mod.prefab} Added."); }
                 }
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing recipes."); }
                 var yaml = Config.yamlserializer.Serialize(recipeCollection);

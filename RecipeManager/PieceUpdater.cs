@@ -4,8 +4,6 @@ using RecipeManager.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
 using Logger = Jotunn.Logger;
@@ -25,6 +23,7 @@ namespace RecipeManager
 
         public static void PieceUpdateRunner()
         {
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Applying {TrackedPieces.Count} piece modifications"); }
             foreach (TrackedPiece piece in TrackedPieces) 
             {
                 ApplyPieceModifications(piece);   
@@ -33,9 +32,10 @@ namespace RecipeManager
 
         public static void ApplyPieceModifications(TrackedPiece piece)
         {
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Applying piece ({piece.prefab}) modification action: {piece.action}"); }
             switch (piece.action) {
                 case PieceAction.Disable:
-                    DisablePiece(piece.prefab);
+                    DisablePiece(piece);
                     break;
                 case PieceAction.Modify:
                     ModifyPiece(piece);
@@ -56,6 +56,7 @@ namespace RecipeManager
 
         public static void EnablePiece(TrackedPiece piece)
         {
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Enabling {piece.prefab}"); }
             // Might need to do this for all pieces with the full name
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             go.GetComponent<Piece>().m_enabled = true;
@@ -70,6 +71,7 @@ namespace RecipeManager
 
         private static void ModifyPiece(TrackedPiece piece)
         {
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modifying {piece.prefab}"); }
             // Might need to do this for all pieces with the full name, including clones
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             Piece pcomp = go.GetComponent<Piece>();
@@ -123,10 +125,11 @@ namespace RecipeManager
             }
         }
 
-        private static void DisablePiece(string piece)
+        private static void DisablePiece(TrackedPiece piece)
         {
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modifying {piece.prefab}"); }
             // Might need to do this for all pieces with the full name
-            GameObject go = PrefabManager.Instance.GetPrefab(piece);
+            GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             go.GetComponent<Piece>().m_enabled = false;
         }
 
@@ -143,6 +146,12 @@ namespace RecipeManager
                 GameObject tgo = PrefabManager.Instance.GetPrefab(piece.Value.prefab);
                 Piece tpc = tgo.GetComponent<Piece>();
                 tpiece.originalPiece = tpc;
+
+                if (piece.Value.action == PieceAction.Enable || piece.Value.action == PieceAction.Disable) {
+                    // We don't need to add any recipes or lookup details about things if we are just enabling or disabling the piece
+                    TrackedPieces.Add(tpiece);
+                    continue;
+                }
 
                 Piece.Requirement[] updatedreq = new Piece.Requirement[piece.Value.requirements.Count()];
                 int index = 0;
@@ -184,6 +193,8 @@ namespace RecipeManager
                 tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
                 tpiece.SpaceRequired = piece.Value.SpaceRequired;
                 tpiece.GroundPlacement = piece.Value.GroundPlacement;
+                // Finally add the tracked piece modifications
+                TrackedPieces.Add(tpiece);
             }
         }
 

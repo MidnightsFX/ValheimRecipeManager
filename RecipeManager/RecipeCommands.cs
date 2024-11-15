@@ -21,13 +21,7 @@ namespace RecipeManager
         {
             RecipeUpdater.RecipeRevert();
             // read out the file
-            string recipeConfigData = File.ReadAllText(Config.recipeConfigFilePath);
-            try {
-                var recipeFileData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-            } catch { 
-                Logger.LogWarning($"Could not reload the recipe file from disk: {Config.recipeConfigFilePath}");
-            }
+            Config.ReloadRecipeFiles();
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
         }

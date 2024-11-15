@@ -197,8 +197,8 @@ namespace RecipeManager.Common
                 string recipeConfigData = File.ReadAllText(secondaryPieceFile);
                 try
                 {
-                    var recipeFileData = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
-                    allPieceData.Add(recipeFileData);
+                    var piecefiledata = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
+                    allPieceData.Add(piecefiledata);
                     //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
                 }
                 catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
@@ -212,6 +212,43 @@ namespace RecipeManager.Common
                 recipeFW.Renamed += new RenamedEventHandler(UpdatePieceConfigFilesOnChange);
                 recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
                 recipeFW.EnableRaisingEvents = true;
+            }
+            PieceUpdater.UpdateRecipeModificationsFromList(allPieceData);
+        }
+
+        internal static void ReloadPieceFiles()
+        {
+            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
+
+            foreach (var secondaryPieceFile in PieceConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
+                try
+                {
+                    var piecefiledata = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
+                    allPieceData.Add(piecefiledata);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
+            }
+            PieceUpdater.UpdateRecipeModificationsFromList(allPieceData);
+        }
+
+        internal static void ReloadRecipeFiles()
+        {
+            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
+
+            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
+                try
+                {
+                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
+                    allRecipeData.Add(recipeFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {e}"); }
             }
             RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
         }
