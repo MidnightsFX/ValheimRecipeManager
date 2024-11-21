@@ -157,7 +157,34 @@ namespace RecipeManager.Common
                 Logger.LogInfo("Pieces file missing, recreating.");
                 using (StreamWriter writetext = new StreamWriter(pieceConfigFilePath))
                 {
+                    String header = @"############################################################################
+# Piece Manipulation Config
+############################################################################
+# pieceModifications:                                      # <- This is the top level key, it is required
+#  modify_the_bed:                                         # <- REQUIRED The name of this modification, it should be unique but is for your information
+#    action: Enable                                        # <- REQUIRED This is the action applied can be [Enable, Disable, Modify]
+#    prefab: bed                                           # <- REQUIRED This is the prefab that the action will be applied to
+#    requirements:                                         # <- If the piece is being modified, you can set requirements which will be the cost to build this
+#    - prefab: Wood                                        # <- Each requirement entry requires a prefab name, you can find item prefabs on the valheim wiki
+#      amount: 8                                           # <- The amount of the prefab required
+#    requiredToPlaceCraftingStation: piece_workbench       # <- The crafting station used to place this item, if it is set to 'none' it will remove the station requirement
+#    allowedInDungeon: false                               # <- If you can build this inside dungeons
+#    canBeDeconstructed: true                              # <- If this can be broken with middle mouse
+#    pieceCategory: Furniture                              # <- The category tab this will be placed in. This can be any of the categories across any available tools
+#    comfortAmount: 1                                      # <- If above 0 this item will provide comfort
+#    comfortGroup: Bed                                     # <- The comfort group this is a part of
+#    isUpgradeForStation: false                            # <- If this piece is considered an upgrade for a crafting station
+#    craftingStationConnectionRadius: 0                    # <- The radius that this will connect to a crafting station
+#    mustBeAvobeConnectedStation: false                    # <- If this upgrade must be placed ABOVE its crafting station- this is normally only used for hanging upgrades for the cooking station
+#    spaceRequired: 0                                      # <- How much space is required for this item
+#    pieceName: $piece_bed                                 # <- The localizable name for this, setting ""My Bed"" will make this piece called ""My Bed""
+#    pieceDescription: ''                                  # <- The description for this piece, many pieces do not have this
+#    enablePiece: true                                     # <- Whether or not this piece is enabled
+#    onlyInSelectBiome: None                               # <- Whether or not this can be placed in only one biome, in vanilla this is used for plants
+#    cultivatedGroundOnly: false                           # <- Whether this piece needs to be placed on cultivated ground
+#    groundPlacement: false                                # <- Whether this piece needs to be placed on ground (stone is also considered ground)";
                     // Write the header here too
+                    writetext.WriteLine(header);
                     writetext.WriteLine(YamlPieceConfigDefinition());
                 }
             }

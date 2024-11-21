@@ -11,7 +11,7 @@ namespace RecipeManager
 {
     internal class RecipeReloadCommand : ConsoleCommand
     {
-        public override string Name => "RecipeManager_Reload";
+        public override string Name => "RM_Recipes_Reload";
 
         public override string Help => "Resynchronizes recipes.";
 
@@ -29,7 +29,7 @@ namespace RecipeManager
 
     internal class RecipePrintCommand : ConsoleCommand
     {
-        public override string Name => "RecipeManager_PrintAllRecipes";
+        public override string Name => "RM_Recipes_PrintAll";
 
         public override string Help => "Prints all the recipes stored in the Object DB";
 

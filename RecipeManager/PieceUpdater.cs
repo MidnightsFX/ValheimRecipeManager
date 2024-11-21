@@ -3,7 +3,6 @@ using Jotunn.Managers;
 using RecipeManager.Common;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
 using Logger = Jotunn.Logger;
@@ -81,10 +80,7 @@ namespace RecipeManager
                 {
                     pcomp.m_resources = piece.updatedRequirements;
                 }
-                if (piece.RequiredToPlaceCraftingStation != null)
-                {
-                    pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation;
-                }
+                pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation;
                 pcomp.m_allowedInDungeons = piece.AllowedInDungeon;
                 pcomp.m_canBeRemoved = piece.CanBeDeconstructed;
                 if (piece.PieceCategory != Piece.PieceCategory.All)
@@ -138,14 +134,19 @@ namespace RecipeManager
             TrackedPieces.Clear();
             foreach (KeyValuePair<string, PieceModification> piece in PiecesToModify)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing piece requirements for {piece.Key}"); }
+                if (piece.Key == null) {  continue; }
+                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing piece modification for {piece.Key}"); }
                 TrackedPiece tpiece = new TrackedPiece();
                 tpiece.action = piece.Value.action;
                 tpiece.prefab = piece.Value.prefab;
 
-                GameObject tgo = PrefabManager.Instance.GetPrefab(piece.Value.prefab);
-                Piece tpc = tgo.GetComponent<Piece>();
-                tpiece.originalPiece = tpc;
+                try {
+                    GameObject tgo = PrefabManager.Instance.GetPrefab(piece.Value.prefab);
+                    Piece tpc = tgo.GetComponent<Piece>();
+                    tpiece.originalPiece = tpc;
+                } catch (Exception) {
+                    Logger.LogWarning($"Could not find entries referenced piece, this modification will be skipped. Define a prefab to modify to fix this.");
+                }
 
                 if (piece.Value.action == PieceAction.Enable || piece.Value.action == PieceAction.Disable) {
                     // We don't need to add any recipes or lookup details about things if we are just enabling or disabling the piece
@@ -153,31 +154,36 @@ namespace RecipeManager
                     continue;
                 }
 
-                Piece.Requirement[] updatedreq = new Piece.Requirement[piece.Value.requirements.Count()];
-                int index = 0;
+                List<Piece.Requirement> updatedreq = new List<Piece.Requirement>();
                 foreach(var req in piece.Value.requirements)
                 {
+                    
                     try {
                         GameObject rgo = PrefabManager.Instance.GetPrefab(req.Prefab);
                         ItemDrop tid = rgo.GetComponent<ItemDrop>();
-                        updatedreq[index] = new Piece.Requirement() { m_amount = req.amount, m_resItem = tid };
+                        updatedreq.Add(new Piece.Requirement() { m_amount = req.amount, m_resItem = tid });
+                        Logger.LogInfo($"Building requirement with res:{tid.name} amount:{req.amount}");
                     } catch {
                         Logger.LogWarning($"Could not find an itemDrop for resource with name: {req.Prefab}");
                     }
                 }
-                tpiece.updatedRequirements = updatedreq;
+                tpiece.updatedRequirements = updatedreq.ToArray();
 
                 if (piece.Value.RequiredToPlaceCraftingStation != null && piece.Value.RequiredToPlaceCraftingStation != "")
                 {
-                    CraftingStation craftStation = PrefabManager.Instance.GetPrefab(piece.Value.RequiredToPlaceCraftingStation)?.GetComponent<CraftingStation>();
-                    if (craftStation != null)
-                    {
-                        tpiece.RequiredToPlaceCraftingStation = craftStation;
+                    if (piece.Value.RequiredToPlaceCraftingStation.ToLower() == "none") {
+                        tpiece.RequiredToPlaceCraftingStation = null;
+                    } else {
+                        CraftingStation craftStation = PrefabManager.Instance.GetPrefab(piece.Value.RequiredToPlaceCraftingStation)?.GetComponent<CraftingStation>();
+                        if (craftStation != null) {
+                            tpiece.RequiredToPlaceCraftingStation = craftStation;
+                        }  else {
+                            Logger.LogWarning($"Could not link required crafting station, are you sure a crafting station exists with piecename: {craftStation}");
+                        }
                     }
-                    else
-                    {
-                        Logger.LogWarning($"Could not link required crafting station, are you sure a crafting station exists with piecename: {craftStation}");
-                    }
+                } else {
+                    // If we do not have the crafting station set, it should be set to its current- this ensures it is not modified but that we support nullifying it
+                    tpiece.RequiredToPlaceCraftingStation = PrefabManager.Instance.GetPrefab(piece.Value.prefab).GetComponent<Piece>().m_craftingStation; ;
                 }
 
                 tpiece.IsUpgradeForStation = piece.Value.IsUpgradeForStation;

@@ -29,36 +29,6 @@ namespace RecipeManager
         }
     }
 
-    internal class PieceUnapplyModifications : ConsoleCommand
-    {
-        public override string Name => "RM_Pieces_Revert";
-
-        public override string Help => "Disables piece modifications.";
-
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
-        {
-            PieceUpdater.RevertPieceModifications();
-        }
-    }
-
-    internal class PieceApplyModifications : ConsoleCommand
-    {
-        public override string Name => "RM_Pieces_Apply";
-
-        public override string Help => "Applies piece modifications. This is only needed if you have reverted piece modifications.";
-
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
-        {
-            Config.ReloadPieceFiles();
-            PieceUpdater.BuildPieceTracker();
-            PieceUpdater.PieceUpdateRunner();
-        }
-    }
-
     // Need to actually fill this out
     internal class PiecePrintCommand : ConsoleCommand
     {

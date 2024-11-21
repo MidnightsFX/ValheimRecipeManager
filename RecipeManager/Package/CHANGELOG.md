@@ -3,10 +3,11 @@
 ```
 - Add support for piece modifications
 	- Details about pieces can now be modified
-	- Piece modifications are seperated from item modifications
+	- Piece modifications are separated from item modifications
 - Added support for multiple config files of each type
 - Unified synchronization for multiple files & piece or recipe types
 - Virtualized piece and recipe synchronization, files are no longer created or mirrored from the host/server
+- Some improvements to recipe modification synchronization
 ```
 
  **0.3.4**
