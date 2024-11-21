@@ -170,6 +170,7 @@
   <Target Name="CopyToModManagers" AfterTargets="ILRepacker">
     <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Modtest\BepInEx\plugins" />
     <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\Thunderstore Mod Manager\DataFolder\Valheim\profiles\Modtesting\BepInEx\plugins" />
+    <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\com.kesomannen.gale\valheim\profiles\Modtest\BepInEx\plugins" />
     <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="$(ProjectDir)\Package\plugins\" />
   </Target>
   <PropertyGroup>

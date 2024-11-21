@@ -85,7 +85,7 @@ namespace RecipeManager.Common
 
             foreach (string configFile in presentFiles)
             {
-                if (configFile.Contains("Recipes.yaml"))
+                if (configFile.Contains("Recipes.yaml") && !configFile.Contains("ObjectDBRecipes.yaml"))
                 {
                     if (EnableDebugMode.Value) { Logger.LogInfo($"Found recipe configuration yaml: {configFile}"); }
                     RecipeConfigFilePaths.Add(configFile);
