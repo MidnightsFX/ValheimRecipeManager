@@ -1,16 +1,20 @@
 # RecipeManager
 This is a lightweight recipe modification tool. You can define recipes to Add, Modify, Delete etc. It does not use any patches, and does not run constantly. 
 
-If you want to do more than modify recipes, check out [WackysDB](https://thunderstore.io/c/valheim/p/WackyMole/WackysDatabase/)
+If you want to do more than modify recipes and pieces check out [WackysDB](https://thunderstore.io/c/valheim/p/WackyMole/WackysDatabase/)
 
 In Valheim a recipe is something that is crafting at a crafting station, or cooking station etc. For example, to make wood arrows you use a crafting recipe from the workbench.
 Building pieces (built with the hammer) are not recipes, furnace conversions (1 ore for 1 ingot etc) are not recipes.
+
+Pieces are almost anything that is placed. Everything built with the hammer, plants placed with the cultivator, placable food etc.
 
 ## Features
 - Add recipes
 - Modify recipes
 - Delete recipes
-- Disable recipes
+- Disable Pieces
+- Enable Pieces
+- Modify Pieces
 
 Recipes can be manipulated and added through yaml. All of the existing recipes can also be dumped to a file, in the same format to help you find and understand existing recipes.
 
@@ -67,15 +71,33 @@ recipeModifications:                     # <- This is the top level key, all mod
 ### Commands
 This mod adds two new commands which can be used to speed up recipe modification.
 
-`RecipeManager_Reload` - This reloads all recipe modifications that are listed in the recipe config file.
+`RM_Recipes_Reload` - This reloads all recipe modifications that are found.
 
-`RecipeManager_PrintAllRecipes` - This prints all recipes currently stored in the object DB (including modifications).
+`RM_Recipes_PrintAll` - This prints all recipes currently stored in the object DB (including modifications), this file is ignored.
+
+`RM_Pieces_Reload` - This reloads all piece modifications that are found.
+
+`RM_Pieces_PrintAll` - This prints all pieces to a debug file (including modifications), this file is ignored.
 
 Commands require [enabling the in-game console](https://valheim.fandom.com/wiki/Developer_console).
 
 If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add `--console`
 
 It is not recommended to use Vortex mod manager, however using vortex hardlink or copy deployments you can launch from steam using BepinEx with a `--console` launch parameter. To do so right click on the game in your library, manage, general, at the bottom add `--console` to the launch options.
+
+### Multiple Config files
+
+All files which contain `Recipes.yaml` in `\BepInEx\config\RecipeManager\` will be considered recipe files (except `ObjectDBRecipes.yaml`).
+For example this means that:
+
+- `Forge_Recipes.yaml` is valid
+- `SoupStationStuff.yaml` is not valid and will not be loaded but `SoupStationStuffRecipes.yaml` is.
+
+All files which contain `Pieces.yaml` in `\BepInEx\config\RecipeManager\` will be considered piece modifications and loaded.
+For example this means that:
+
+- `CultivatorPieces.yaml` is valid
+- `Cultivator.yaml` is not valid and will not be loaded
 
 ### Examples
 
@@ -186,6 +208,8 @@ recipeModifications:
 
 ### Planned Features
 - More recipe validation
+- Conversion modifications (like ores for ingots)
+- Export to WackyDB
 
 
 ## Installation (manual)

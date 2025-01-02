@@ -11,7 +11,7 @@ namespace RecipeManager
 {
     internal class RecipeReloadCommand : ConsoleCommand
     {
-        public override string Name => "RecipeManager_Reload";
+        public override string Name => "RM_Recipes_Reload";
 
         public override string Help => "Resynchronizes recipes.";
 
@@ -21,13 +21,7 @@ namespace RecipeManager
         {
             RecipeUpdater.RecipeRevert();
             // read out the file
-            string recipeConfigData = File.ReadAllText(Config.recipeConfigFilePath);
-            try {
-                RecipeModificationCollection recipeFileData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-            } catch { 
-                Logger.LogWarning($"Could not reload the recipe file from disk: {Config.recipeConfigFilePath}");
-            }
+            Config.ReloadRecipeFiles();
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
         }
@@ -35,7 +29,7 @@ namespace RecipeManager
 
     internal class RecipePrintCommand : ConsoleCommand
     {
-        public override string Name => "RecipeManager_PrintAllRecipes";
+        public override string Name => "RM_Recipes_PrintAll";
 
         public override string Help => "Prints all the recipes stored in the Object DB";
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using static Piece;
 
 namespace RecipeManager.Common
 {
@@ -17,6 +18,74 @@ namespace RecipeManager.Common
             Modify,
             Add,
             Enable
+        }
+
+        public enum PieceAction
+        {
+            Disable,
+            Modify,
+            Enable
+        }
+
+        public class TrackedPiece
+        {
+            public PieceAction action { get; set; }
+            public string prefab {  get; set; }
+            public Piece originalPiece { get; set; }
+            public Requirement[] updatedRequirements { get; set; }
+            public CraftingStation RequiredToPlaceCraftingStation { get; set; }
+            public bool AllowedInDungeon { get; set; } = false;
+            public bool CanBeDeconstructed { get; set; } = true;
+            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
+            public int ComfortAmount { get; set; } = -1;
+            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
+            public bool IsUpgradeForStation {  get; set; }
+            public float CraftingStationConnectionRadius { get; set; } = -1f;
+            public bool MustBeAvobeConnectedStation { get; set; } = false;
+            public float SpaceRequired { get; set; } = -1;
+            public string PieceName { get; set; }
+            public string PieceDescription { get; set; }
+            public bool EnablePiece { get; set; } = true;
+            public Heightmap.Biome OnlyInBiome { get; set; } = Heightmap.Biome.All;
+            public bool CultivatedGroundOnly { get; set; } = false;
+            public bool GroundPlacement { get; set; } = true;
+        }
+
+        [DataContract]
+        public class PieceModificationCollection
+        {
+            public Dictionary<String, PieceModification> PieceModifications { get; set; } = new Dictionary<string, PieceModification>();
+        }
+
+        [DataContract]
+        public class PieceModification
+        {
+            public PieceAction action { get; set; }
+            public string prefab { get; set; }
+            public List<SimpleRequirement> requirements { get; set; } = new List<SimpleRequirement>();
+            public String RequiredToPlaceCraftingStation { get; set;}
+            public bool AllowedInDungeon { get; set; } = false;
+            public bool CanBeDeconstructed { get; set; } = true;
+            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
+            public int ComfortAmount { get; set; } = -1;
+            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
+            public bool IsUpgradeForStation { get; set; }
+            public float CraftingStationConnectionRadius { get; set; } = -1f;
+            public bool MustBeAvobeConnectedStation { get; set; } = false;
+            public float SpaceRequired { get; set; } = -1;
+            public string PieceName { get; set; }
+            public string PieceDescription { get; set; }
+            public bool EnablePiece { get; set; } = true;
+            public Heightmap.Biome OnlyInSelectBiome { get; set; } = Heightmap.Biome.All;
+            public bool CultivatedGroundOnly { get; set; } = false;
+            public bool GroundPlacement {  get; set; } = true;
+        }
+
+        [DataContract]
+        public class SimpleRequirement
+        {
+            public string Prefab { get; set; }
+            public int amount { get; set; }
         }
 
         public class TrackedRecipe

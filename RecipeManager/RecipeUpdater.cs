@@ -181,28 +181,27 @@ namespace RecipeManager
 
         public static bool CheckIfRecipeWasModified(TrackedRecipe trackedRecipe)
         {
-            if (trackedRecipe.action == DataObjects.Action.Modify || trackedRecipe.action == DataObjects.Action.Delete || trackedRecipe.action == DataObjects.Action.Disable)
-            {
+            bool modified = true;
+            if (trackedRecipe.action == DataObjects.Action.Modify || trackedRecipe.action == DataObjects.Action.Delete) {
                 int index_of_original_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.originalRecipe);
                 if (index_of_original_recipe > 0)
                 {
-                    return false;
+                    modified = false;
                 }
             }
-            if (trackedRecipe.action == DataObjects.Action.Add)
-            {
+            if (trackedRecipe.action == DataObjects.Action.Add) {
                 int index_of_new_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.updatedRecipe);
-                if (index_of_new_recipe > 0)
+                if (index_of_new_recipe < 0)
                 {
-                    return true;
-                } else
-                {
-                    return false;
+                    modified = false;
                 }
             }
-
-            //failsafe re-check
-            return false;
+            // Just always reapply disables or enables since they are quick and harmless
+            if (trackedRecipe.action == DataObjects.Action.Enable || trackedRecipe.action == DataObjects.Action.Disable) {
+                modified = false;
+            }
+            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"recipe {trackedRecipe.recipeName} already modified? {modified}"); }
+            return modified;
         }
 
         public static void BuildRecipesForTracking()
@@ -395,6 +394,18 @@ namespace RecipeManager
             foreach (KeyValuePair<String, RecipeModification> entry in recipeMods.RecipeModifications)
             {
                 RecipesToModify.Add(entry.Key, entry.Value);
+            }
+        }
+
+        public static void UpdateRecipeModificationsFromList(List<RecipeModificationCollection> lRecipeMods)
+        {
+            RecipesToModify.Clear();
+            foreach(RecipeModificationCollection rcol in lRecipeMods)
+            {
+                foreach (KeyValuePair<String, RecipeModification> entry in rcol.RecipeModifications)
+                {
+                    RecipesToModify.Add(entry.Key, entry.Value);
+                }
             }
         }
 
