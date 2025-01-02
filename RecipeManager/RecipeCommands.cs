@@ -43,10 +43,10 @@ namespace RecipeManager
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo("Loading recipes from ODB"); }
                 foreach (Recipe recipe in ObjectDB.instance.m_recipes.ToList())
                 {
+                    // Skip invalid recipes
                     if (recipe == null) { continue; }
                     if (recipe.name == null) { continue; }
-                    // This list of just broken recipes
-                    // if (recipe.name == "Recipe_Adze") { continue; }
+
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Building Recipe {recipe.name}"); }
                     RecipeModification recipe_as_mod = new RecipeModification();
                     

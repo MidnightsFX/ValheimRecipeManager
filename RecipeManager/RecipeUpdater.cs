@@ -19,6 +19,9 @@ namespace RecipeManager
 
         public static void SecondaryRecipeSync()
         {
+            // Guard against doing any recipe modifications if there are no recipes to modify
+            if (TrackedRecipes.Count == 0) return;
+
             foreach (TrackedRecipe tracked_recipe in TrackedRecipes)
             {
                 if(CheckIfRecipeWasModified(tracked_recipe) == true) { continue; }
@@ -65,7 +68,6 @@ namespace RecipeManager
                     Logger.LogInfo($"Applying Updated Recipe: {tracked_recipe.updatedRecipe.name}\n" +
                     $"amount:{tracked_recipe.updatedRecipe.m_amount}\n" +
                     $"enabled:{tracked_recipe.updatedRecipe.m_enabled}\n" +
-                    $"amount:{tracked_recipe.updatedRecipe.m_amount}\n" +
                     $"craftingStation:{tracked_recipe.updatedRecipe.m_craftingStation}\n" +
                     $"reqStationLevel:{tracked_recipe.updatedRecipe.m_minStationLevel}\n" +
                     $"reqOneIngrediant:{tracked_recipe.updatedRecipe.m_requireOnlyOneIngredient}\n" +
@@ -109,6 +111,7 @@ namespace RecipeManager
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modify Action called for {tracked_recipe.prefab} recipe"); }
                 if (ObjectDB.instance.m_recipes.Contains(tracked_recipe.updatedRecipe)) {
+                    DeleteRecipe(tracked_recipe.originalRecipe); // Ensure the original recipe is removed if it still exists, because the modified one has been added
                     update_applied = true;
                 } else {
                     update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
@@ -121,10 +124,6 @@ namespace RecipeManager
             {
                 if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Add Action called for {tracked_recipe.prefab} recipe"); }
                 update_applied = AddRecipe(tracked_recipe.updatedRecipe);
-                if (ItemManager.Instance.GetRecipe(tracked_recipe.recipeName) != null)
-                {
-                    ItemManager.Instance.AddRecipe(tracked_recipe.updatedCustomRecipe);
-                }
             }
 
             // Enable Action
@@ -207,6 +206,7 @@ namespace RecipeManager
 
         public static void BuildRecipesForTracking()
         {
+            if (RecipesToModify.Count == 0) { return; }
             TrackedRecipes.Clear();
             foreach (KeyValuePair<string, RecipeModification>  recipeMod in RecipesToModify)
             {
@@ -325,9 +325,15 @@ namespace RecipeManager
 
         public static bool ModifyRecipeInJotunnManager(CustomRecipe recipe, CustomRecipe newRecipe)
         {
+
             HashSet<CustomRecipe> hashsetRecipes = AccessTools.Field(typeof(ItemManager), "Recipes").GetValue(ItemManager.Instance) as HashSet<CustomRecipe>;
             if (hashsetRecipes != null)
             {
+                if (hashsetRecipes.Contains(newRecipe))
+                {
+                    // Skip the change if the recipe list already contains the requireed entry
+                    return true;
+                }
                 hashsetRecipes.Remove(recipe);
                 hashsetRecipes.Add(newRecipe);
                 return true;
@@ -341,13 +347,6 @@ namespace RecipeManager
             if (index > -1)
             {
                 ObjectDB.instance.m_recipes[index] = newRecipe;
-                //ObjectDB.instance.m_recipes[index].m_enabled = newRecipe.m_enabled;
-                //ObjectDB.instance.m_recipes[index].m_amount = newRecipe.m_amount;
-                //ObjectDB.instance.m_recipes[index].m_resources = newRecipe.m_resources;
-                //ObjectDB.instance.m_recipes[index].m_craftingStation = newRecipe.m_craftingStation;
-                //ObjectDB.instance.m_recipes[index].m_repairStation = newRecipe.m_repairStation;
-                //ObjectDB.instance.m_recipes[index].m_minStationLevel = newRecipe.m_minStationLevel;
-                //ObjectDB.instance.m_recipes[index].m_requireOnlyOneIngredient = newRecipe.m_requireOnlyOneIngredient;
                 return true;
             }
             return false;

@@ -13,8 +13,20 @@
  **0.3.4**
 ---
 ```
-- Bog Witch Update
-- Jotunn Updated to 2.21.2
+- Added guards to do nothing if recipe reload is called when you have no recipes set to modify
+```
+
+ **0.3.3**
+---
+```
+- Simplified item add during server handshake post config received
+```
+
+ **0.3.2**
+---
+```
+- More eventual consistency checks
+- Add ensures that the recipe does not already exist
 ```
 
  **0.3.1**

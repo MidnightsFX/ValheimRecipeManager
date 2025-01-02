@@ -57,7 +57,7 @@ namespace RecipeManager.Common
             EnableDebugMode = Config.Bind("Client config", "EnableDebugMode", false,
                 new ConfigDescription("Enables Debug logging for Recipe Manager. This is client side and is not syncd with the server.",
                 null,
-                new ConfigurationManagerAttributes { IsAdminOnly = false, IsAdvanced = true }));
+                new ConfigurationManagerAttributes { IsAdvanced = true }));
         }
 
         private static void UpdateMainConfigFile(object sender, FileSystemEventArgs e)
@@ -115,7 +115,7 @@ namespace RecipeManager.Common
 #   AddNewWoodArrowRecipe:
 #     action: Add
 #     prefab: ArrowWood
-#     recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows multiple mutating multiple recipes targeting the same prefab
+#     recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows matching and mutating multiple recipes targeting the same prefab
 #     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
 #     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
 #     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
