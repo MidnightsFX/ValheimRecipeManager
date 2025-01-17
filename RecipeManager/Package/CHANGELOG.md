@@ -1,3 +1,11 @@
+ **0.4.1**
+---
+```
+- Adds support for nocost recipes
+- Adds separate repair station configuration for recipes, if unset defaults to the crafting station
+- Removed recipe refund setting as it was not working as intended
+```
+
  **0.4.0**
 ---
 ```

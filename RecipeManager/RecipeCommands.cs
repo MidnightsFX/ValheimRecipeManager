@@ -61,6 +61,11 @@ namespace RecipeManager
                         if (Config.EnableDebugMode.Value) { Logger.LogInfo("Adding crafting station"); }
                         recipe_as_mod.craftedAt = recipe.m_craftingStation.name;
                     }
+                    if (recipe.m_repairStation != null)
+                    {
+                        if (Config.EnableDebugMode.Value) { Logger.LogInfo("Adding repair station"); }
+                        recipe_as_mod.repairAt = recipe.m_repairStation.name;
+                    }
                     if (recipe.m_item != null)
                     {
                         if (Config.EnableDebugMode.Value) { Logger.LogInfo("Adding prefab"); }
@@ -80,8 +85,6 @@ namespace RecipeManager
                                 res_req.craftCost = (short)req.m_amount;
                                 if (Config.EnableDebugMode.Value) { Logger.LogInfo("Setting upgrade cost"); }
                                 res_req.upgradeCost = (short)req.m_amountPerLevel;
-                                if (Config.EnableDebugMode.Value) { Logger.LogInfo("Setting refund bool"); }
-                                res_req.refund = req.m_recover;
                                 if (Config.EnableDebugMode.Value) { Logger.LogInfo("Setting prefab name"); }
                                 if (req.m_resItem != null) { res_req.prefab = req.m_resItem.name; }
                                 if (Config.EnableDebugMode.Value) { Logger.LogInfo("Adding to ingrediants list"); }

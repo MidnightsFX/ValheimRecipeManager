@@ -9,7 +9,7 @@ Building pieces (built with the hammer) are not recipes, furnace conversions (1 
 Pieces are almost anything that is placed. Everything built with the hammer, plants placed with the cultivator, placable food etc.
 
 ## Features
-- Disable recipes
+- Add recipes
 - Modify recipes
 - Delete recipes
 - Disable Pieces
@@ -36,7 +36,7 @@ recipeModifications:                     # <- This is the top level key, all mod
   AddNewWoodArrowRecipe:
     action: Add
     prefab: ArrowWood
-    recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows multiple mutating multiple recipes targeting the same prefab
+    recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows matching and mutating multiple recipes targeting the same prefab
     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
@@ -45,11 +45,9 @@ recipeModifications:                     # <- This is the top level key, all mod
         - prefab: Wood                   # <- Prefab that this ingrediant requires
           craftCost: 2                   # <- The amount of this ingrediant it takes to craft the recipe  
           upgradeCost: 0                 # <- The amount of this ingrediant it takes to upgrade the item 
-          refund: false                  # <- Whether or not this recipe refunds  
         - prefab: Feathers
           craftCost: 2
           upgradeCost: 0
-          refund: true
   DeleteTrollHideArmorRecipe:
     action: Delete
     prefab: CapeTrollHide
@@ -64,7 +62,6 @@ recipeModifications:                     # <- This is the top level key, all mod
         - prefab: TrollHide
           craftCost: 4
           upgradeCost: 2
-          refund: false
 ```
 </details>
 
@@ -99,7 +96,7 @@ For example this means that:
 - `CultivatorPieces.yaml` is valid
 - `Cultivator.yaml` is not valid and will not be loaded
 
-### Examples
+### Recipe Examples
 
 The mod ships with a default example recipe file which will provide you similar explanations to what is listed above. You can find the recipe file after starting up your game with the mod installed in you `BepInEx\config\RecipeManager` folder.
 
@@ -125,11 +122,10 @@ recipeModifications:
       - prefab: Iron
         craftCost: 2
         upgradeCost: 0
-        refund: false
 ```
 </details>
 
-Disable recipes you don't want from vanilla or other mods (disable recipes from [Southsil Armors](https://thunderstore.io/c/valheim/p/southsil/SouthsilArmor/) as that mod does not properly support disabling recipes)
+Disable recipes you don't want from vanilla or other mods (disable recipes from [Southsil Armors](https://thunderstore.io/c/valheim/p/southsil/SouthsilArmor/))
 <details>
   <summary>Yaml example</summary>
 
@@ -166,11 +162,9 @@ recipeModifications:
       - prefab: Copper
         craftCost: 2
         upgradeCost: 1
-        refund: true
       - prefab: Tin
         craftCost: 1
         upgradeCost: 1
-        refund: true
   Recipe_Bronze5:
     action: Modify
     prefab: Bronze
@@ -184,11 +178,9 @@ recipeModifications:
       - prefab: Copper
         craftCost: 10
         upgradeCost: 1
-        refund: true
       - prefab: Tin
         craftCost: 5
         upgradeCost: 1
-        refund: true
 ```
 </details>
 
@@ -205,6 +197,76 @@ recipeModifications:
     craftedAt: piece_cauldron
 ```
 </details>
+
+### Piece Examples
+
+Enables all of the holiday building pieces
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+pieceModifications:
+  enable_mistletoe:
+    action: Enable
+    prefab: piece_mistletoe
+  enable_jackoturnip:
+    action: Enable
+    prefab: piece_jackoturnip
+  enable_yuletree:
+    action: Enable
+    prefab: piece_xmastree
+  enable_yulecrown:
+    action: Enable
+    prefab: piece_xmascrown
+  enable_yulegarland:
+    action: Enable
+    prefab: piece_xmasgarland
+  enable_gift1:
+    action: Enable
+    prefab: piece_gift1
+  enable_gift2:
+    action: Enable
+    prefab: piece_gift2
+  enable_maypole:
+    action: Enable
+    prefab: piece_maypole
+```
+</details>
+
+Makes the kiln cost 100 stone, but only 1 surtling core
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+pieceModifications:
+  expensive_kiln:
+    action: Modify
+    prefab: charcoal_kiln
+    requirements:
+    - prefab: Stone
+      amount: 100
+    - prefab: SurtlingCore
+      amount: 1
+```
+</details>
+
+Removes the stonecutter as a buildable piece
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+pieceModifications:
+  remove_stonecutter:
+    action: Disable
+    prefab: piece_stonecutter
+```
+</details>
+
+### FAQ
+- Q: Why is my recipe not showing up?
+  A. Ensure that the recipe uses the action 'Modify' or 'Add', by default recipes dumped from the object DB will not, they will use Enable. Which if the recipe already exists and is not disabled, does nothing.
+- Q: My yaml has an error about the `refund` key
+  A. The refund key was removed in 0.4.1. If you need to remove the key from an existing yaml you can use the following regex `( +refund: \w+\n?)` and replace with nothing. This can be done from most text editors find and replace.
 
 ### Planned Features
 - More recipe validation

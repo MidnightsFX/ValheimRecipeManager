@@ -120,15 +120,14 @@ namespace RecipeManager.Common
 #     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
 #     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
 #       anyOneResource: false              # <- This makes the recipe only require one ingrediant, first from the top will be used.
+#       noRecipeCost: false                # <- This makes the recipe not require any resources to craft, if this is used the ingredients list will be ignored
 #       ingredients:                       # <- Ingrediants in the recipe, is an array
 #         - prefab: Wood                   # <- Prefab that this ingrediant requires
 #           craftCost: 2                   # <- The amount of this ingrediant it takes to craft the recipe  
 #           upgradeCost: 0                 # <- The amount of this ingrediant it takes to upgrade the item 
-#           refund: false                  # <- Whether or not this recipe refunds  
 #         - prefab: Feathers
 #           craftCost: 2
 #           upgradeCost: 0
-#           refund: true
 #   DeleteTrollHideArmorRecipe:
 #     action: Delete
 #     prefab: CapeTrollHide
@@ -143,7 +142,6 @@ namespace RecipeManager.Common
 #         - prefab: TrollHide
 #           craftCost: 4
 #           upgradeCost: 2
-#           refund: false
 ";
 
                     writetext.WriteLine(header);

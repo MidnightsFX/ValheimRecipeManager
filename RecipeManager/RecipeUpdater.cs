@@ -239,18 +239,29 @@ namespace RecipeManager
                 if (recipeMod.Value.recipe != null)
                 {
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Found custom recipe modifications, building out definition."); }
-                    RequirementConfig[] cing_recipe = new RequirementConfig[recipeMod.Value.recipe.ingredients.Count];
-                    int i_index = 0;
-                    foreach (Ingrediant ingr in recipeMod.Value.recipe.ingredients)
-                    {
-                        cing_recipe[i_index] = new RequirementConfig { Item = ingr.prefab, Amount = ingr.craftCost, AmountPerLevel = ingr.upgradeCost, Recover = ingr.refund };
-                        i_index++;
+                    
+                    RequirementConfig[] cing_recipe = new RequirementConfig[0];
+                    if (recipeMod.Value.recipe.noRecipeCost == false) {
+                        if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Setting recipe cost requirements."); }
+
+                        cing_recipe = new RequirementConfig[recipeMod.Value.recipe.ingredients.Count];
+                        int i_index = 0;
+                        foreach (Ingrediant ingr in recipeMod.Value.recipe.ingredients)
+                        {
+                            cing_recipe[i_index] = new RequirementConfig { Item = ingr.prefab, Amount = ingr.craftCost, AmountPerLevel = ingr.upgradeCost, Recover = false };
+                            i_index++;
+                        }
                     }
+                    if (recipeMod.Value.repairAt == null) {
+                        recipeMod.Value.repairAt = recipeMod.Value.craftedAt;
+                    }
+
                     CustomRecipe updatedCustomRecipe = new CustomRecipe(new RecipeConfig()
                     {
                         Name = tRecipeDetails.recipeName != null ? tRecipeDetails.recipeName : $"Recipe_{recipeMod.Value.prefab}",
                         Amount = recipeMod.Value.craftAmount,
                         CraftingStation = recipeMod.Value.craftedAt,
+                        RepairStation = recipeMod.Value.repairAt,
                         MinStationLevel = recipeMod.Value.minStationLevel,
                         Enabled = recipeMod.Value.action == DataObjects.Action.Disable ? false : true,
                         Requirements = cing_recipe
@@ -268,10 +279,18 @@ namespace RecipeManager
                     {
                         try {
                             CraftingStation craftStation = PrefabManager.Instance.GetPrefab(recipeMod.Value.craftedAt)?.GetComponent<CraftingStation>();
+                            CraftingStation repairStation;
+                            if (recipeMod.Value.craftedAt != recipeMod.Value.repairAt)
+                            {
+                                repairStation = PrefabManager.Instance.GetPrefab(recipeMod.Value.repairAt)?.GetComponent<CraftingStation>();
+                            } else {
+                                repairStation = craftStation;
+                            }
+                            
                             nRecipe.m_repairStation = craftStation;
                             nRecipe.m_craftingStation = craftStation;
                         } catch {
-                            Logger.LogWarning($"Crafting station ({recipeMod.Value.craftedAt}) could not be resolved or did not have a craftingStation component");
+                            Logger.LogWarning($"Crafting station ({recipeMod.Value.craftedAt}) or repair station ({recipeMod.Value.repairAt}) could not be resolved or did not have a craftingStation component");
                         }
                     }
                     try {

@@ -112,6 +112,7 @@ namespace RecipeManager.Common
             public string prefab { get; set; }
             public string recipeName { get; set; }
             public string craftedAt { get; set; }
+            public string repairAt { get; set; }
             public short minStationLevel { get; set; } = 1;
             public short craftAmount { get; set; } = 1;
             public SimpleRecipe recipe { get; set; }
@@ -121,6 +122,8 @@ namespace RecipeManager.Common
         public class SimpleRecipe
         {
             public bool anyOneResource { get; set; } = false;
+
+            public bool noRecipeCost { get; set; } = false;
             public List<Ingrediant> ingredients { get; set; } = new List<Ingrediant>();
         }
 
@@ -130,7 +133,6 @@ namespace RecipeManager.Common
             public string prefab { get; set; }
             public short craftCost { get; set; }
             public short upgradeCost { get; set; }
-            public bool refund { get; set; } = false;
         }
     }
 }
