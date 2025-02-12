@@ -283,6 +283,7 @@ namespace RecipeManager.Common
             string filename = "";
             string[] split_filepath = fullfilepath.Split('\\');
             // zero based and the last item
+            Logger.LogInfo($"File name check: {string.Join(",", split_filepath)}");
             filename = split_filepath[split_filepath.Length - 2];
             return filename;
         }

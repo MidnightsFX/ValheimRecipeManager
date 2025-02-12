@@ -1,3 +1,10 @@
+ **0.4.2**
+---
+```
+- Fixes duplicate recipes when recipes are modified, and modified again. Primarily during multiple world initializations or character swapping worlds.
+- Fixes items with no crafting station being unrepairable in specific cases
+```
+
  **0.4.1**
 ---
 ```

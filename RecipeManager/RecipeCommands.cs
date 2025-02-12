@@ -27,6 +27,20 @@ namespace RecipeManager
         }
     }
 
+    internal class RecipeUnapplyCommand : ConsoleCommand
+    {
+        public override string Name => "RM_Recipes_Unapply";
+
+        public override string Help => "Removes recipe modifications.";
+
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
+        {
+            RecipeUpdater.RecipeRevert();
+        }
+    }
+
     internal class RecipePrintCommand : ConsoleCommand
     {
         public override string Name => "RM_Recipes_PrintAll";

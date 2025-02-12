@@ -114,8 +114,12 @@ namespace RecipeManager
                     DeleteRecipe(tracked_recipe.originalRecipe); // Ensure the original recipe is removed if it still exists, because the modified one has been added
                     update_applied = true;
                 } else {
-                    update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
-                    ModifyRecipeInJotunnManager(tracked_recipe.originalCustomRecipe, tracked_recipe.updatedCustomRecipe);
+                    if (ObjectDB.instance.m_recipes.Contains(tracked_recipe.originalRecipe)) {
+                        update_applied = ModifyRecipeInODB(tracked_recipe.originalRecipe, tracked_recipe.updatedRecipe);
+                        ModifyRecipeInJotunnManager(tracked_recipe.originalCustomRecipe, tracked_recipe.updatedCustomRecipe);
+                    }
+                    
+                    
                 }
             }
 
@@ -293,6 +297,18 @@ namespace RecipeManager
                             Logger.LogWarning($"Crafting station ({recipeMod.Value.craftedAt}) or repair station ({recipeMod.Value.repairAt}) could not be resolved or did not have a craftingStation component");
                         }
                     }
+                    if (recipeMod.Value.repairAt != null)
+                    {
+                        try {
+                            CraftingStation repairStation = PrefabManager.Instance.GetPrefab(recipeMod.Value.repairAt)?.GetComponent<CraftingStation>();
+                            nRecipe.m_repairStation = repairStation;
+                        }
+                        catch
+                        {
+                            Logger.LogWarning($"Repair station ({recipeMod.Value.repairAt}) could not be resolved or did not have a craftingStation component");
+                        }
+                    }
+
                     try {
                         GameObject tgo = PrefabManager.Instance.GetPrefab(recipeMod.Value.prefab);
                         ItemDrop tid = tgo.GetComponent<ItemDrop>();
@@ -348,13 +364,15 @@ namespace RecipeManager
             HashSet<CustomRecipe> hashsetRecipes = AccessTools.Field(typeof(ItemManager), "Recipes").GetValue(ItemManager.Instance) as HashSet<CustomRecipe>;
             if (hashsetRecipes != null)
             {
-                if (hashsetRecipes.Contains(newRecipe))
-                {
-                    // Skip the change if the recipe list already contains the requireed entry
+                // Skip the change if the recipe list already contains the requireed entry
+                if (hashsetRecipes.Contains(newRecipe)) {
                     return true;
                 }
-                hashsetRecipes.Remove(recipe);
-                hashsetRecipes.Add(newRecipe);
+                // Don't modify anything in jotun if this wasn't a jotun recipe
+                if (hashsetRecipes.Contains(recipe)) {
+                    hashsetRecipes.Remove(recipe);
+                    hashsetRecipes.Add(newRecipe);
+                }
                 return true;
             }
             return false;
