@@ -336,8 +336,7 @@ namespace RecipeManager.Common
         }
 
 
-        public static string GetSecondaryConfigDirectoryPath()
-        {
+        public static string GetSecondaryConfigDirectoryPath() {
             var patchesFolderPath = Path.Combine(Paths.ConfigPath, "RecipeManager");
             var dirInfo = Directory.CreateDirectory(patchesFolderPath);
 

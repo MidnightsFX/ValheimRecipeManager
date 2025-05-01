@@ -11,11 +11,11 @@ namespace RecipeManager
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.4.2";
+        public const string PluginVersion = "0.4.3";
 
         public Common.Config cfg;
 
-        private void Awake()
+        public void Awake()
         {
             cfg = new Common.Config(Config);
             // Update the list of Recipes to track, update etc each time the object db is re-init'd

@@ -1,3 +1,9 @@
+ **0.4.3**
+---
+```
+- Fixes recipe requires any ingredient not being set correctly
+```
+
  **0.4.2**
 ---
 ```

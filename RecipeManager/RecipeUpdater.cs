@@ -268,6 +268,7 @@ namespace RecipeManager
                         RepairStation = recipeMod.Value.repairAt,
                         MinStationLevel = recipeMod.Value.minStationLevel,
                         Enabled = recipeMod.Value.action == DataObjects.Action.Disable ? false : true,
+                        RequireOnlyOneIngredient = recipeMod.Value.recipe.anyOneResource,
                         Requirements = cing_recipe
                     });
                     if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Built new custom recipe."); }
