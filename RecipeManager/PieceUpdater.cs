@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
-using Logger = Jotunn.Logger;
+using Logger = RecipeManager.Common.Logger;
 
 namespace RecipeManager
 {
@@ -14,24 +14,22 @@ namespace RecipeManager
         public static Dictionary<String, PieceModification> PiecesToModify = new Dictionary<String, PieceModification>();
         public static List<TrackedPiece> TrackedPieces = new List<TrackedPiece>();
 
-        public static void InitialSychronization()
-        {
+        public static void InitialSychronization() {
             BuildPieceTracker();
             PieceUpdateRunner();
         }
 
         public static void PieceUpdateRunner()
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Applying {TrackedPieces.Count} piece modifications"); }
-            foreach (TrackedPiece piece in TrackedPieces) 
-            {
-                ApplyPieceModifications(piece);   
+            Logger.LogInfo($"Applying {TrackedPieces.Count} piece modifications");
+            foreach (TrackedPiece piece in TrackedPieces) {
+                ApplyPieceModifications(piece);
             }
         }
 
         public static void ApplyPieceModifications(TrackedPiece piece)
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Applying piece ({piece.prefab}) modification action: {piece.action}"); }
+            Logger.LogDebug($"Applying piece ({piece.prefab}) modification action: {piece.action}");    
             switch (piece.action) {
                 case PieceAction.Disable:
                     DisablePiece(piece);
@@ -55,7 +53,7 @@ namespace RecipeManager
 
         public static void EnablePiece(TrackedPiece piece)
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Enabling {piece.prefab}"); }
+            Logger.LogDebug($"Enabling {piece.prefab}");
             // Might need to do this for all pieces with the full name
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             go.GetComponent<Piece>().m_enabled = true;
@@ -70,7 +68,7 @@ namespace RecipeManager
 
         private static void ModifyPiece(TrackedPiece piece)
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modifying {piece.prefab}"); }
+            Logger.LogDebug($"Modifying {piece.prefab}");
             // Might need to do this for all pieces with the full name, including clones
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             Piece pcomp = go.GetComponent<Piece>();
@@ -123,7 +121,7 @@ namespace RecipeManager
 
         private static void DisablePiece(TrackedPiece piece)
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modifying {piece.prefab}"); }
+            Logger.LogDebug($"Modifying {piece.prefab}");
             // Might need to do this for all pieces with the full name
             GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
             go.GetComponent<Piece>().m_enabled = false;
@@ -135,7 +133,7 @@ namespace RecipeManager
             foreach (KeyValuePair<string, PieceModification> piece in PiecesToModify)
             {
                 if (piece.Key == null) {  continue; }
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing piece modification for {piece.Key}"); }
+                Logger.LogInfo($"Constructing piece modification for {piece.Key}");
                 TrackedPiece tpiece = new TrackedPiece();
                 tpiece.action = piece.Value.action;
                 tpiece.prefab = piece.Value.prefab;
@@ -204,7 +202,7 @@ namespace RecipeManager
             }
         }
 
-        public static void UpdateRecipeModificationsFromList(List<PieceModificationCollection> lPieceMods)
+        public static void UpdatePieceModificationsFromList(List<PieceModificationCollection> lPieceMods)
         {
             PiecesToModify.Clear();
             foreach (PieceModificationCollection rcol in lPieceMods)
@@ -216,7 +214,14 @@ namespace RecipeManager
             }
         }
 
-        public static void UpdateRecipeModifications(PieceModificationCollection PieceMods)
+        public static void UpdatePieceModificationsFromRPC(string rpcRecieved)
+        {
+            Logger.LogInfo($"RPC Recieved: {rpcRecieved}");
+            Logger.LogInfo($"RPC Data: {rpcRecieved.Length}");
+            //var pieceData = Config.yamldeserializer.Deserialize<PieceModificationCollection>(rpcRecieved);
+        }
+
+        public static void UpdatePieceModifications(PieceModificationCollection PieceMods)
         {
             PiecesToModify.Clear();
             foreach (KeyValuePair<String, PieceModification> entry in PieceMods.PieceModifications)

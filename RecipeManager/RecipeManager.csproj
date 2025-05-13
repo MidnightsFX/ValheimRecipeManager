@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\JotunnLib.2.20.1\build\JotunnLib.props" Condition="Exists('..\packages\JotunnLib.2.20.1\build\JotunnLib.props')" />
+  <Import Project="..\packages\JotunnLib.2.24.3\build\JotunnLib.props" Condition="Exists('..\packages\JotunnLib.2.24.3\build\JotunnLib.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -46,63 +46,9 @@
     <StartWorkingDirectory>$(VALHEIM_INSTALL)</StartWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="assembly_googleanalytics_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_googleanalytics_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_guiutils_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_guiutils_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_lux_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_lux_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_postprocessing_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_postprocessing_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_simplemeshcombine_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_simplemeshcombine_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_sunshafts_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_sunshafts_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_utils_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_utils_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="assembly_valheim_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\assembly_valheim_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="ILRepack, Version=2.0.33.0, Culture=neutral, PublicKeyToken=c3e9373f1c31208e, processorArchitecture=MSIL">
-      <HintPath>..\packages\ILRepack.Lib.2.0.33\lib\net472\ILRepack.dll</HintPath>
-    </Reference>
-    <Reference Include="Jotunn, Version=2.20.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\JotunnLib.2.20.1\lib\net462\Jotunn.dll</HintPath>
-    </Reference>
-    <Reference Include="SoftReferenceableAssets_publicized, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\SoftReferenceableAssets_publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
-    <Reference Include="YamlDotNet, Version=15.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
-      <HintPath>..\packages\YamlDotNet.15.1.6\lib\net47\YamlDotNet.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Common\Config.cs" />
+    <Compile Include="Common\ValConfig.cs" />
     <Compile Include="Common\DataObjects.cs" />
+    <Compile Include="Common\Logger.cs" />
     <Compile Include="PieceCommands.cs" />
     <Compile Include="PieceUpdater.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
@@ -115,7 +61,6 @@
     <None Include="app.config" />
     <None Include="DoPrebuild.props" />
     <None Include="Environment.props" />
-    <None Include="ILRepack.targets" />
     <None Include="packages.config" />
     <None Include="Package\CHANGELOG.md" />
     <None Include="README.md" />
@@ -128,6 +73,21 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Package\icon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Jotunn, Version=2.24.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\JotunnLib.2.24.3\lib\net462\Jotunn.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="YamlDotNet, Version=16.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
+      <HintPath>..\packages\YamlDotNet.16.3.0\lib\net47\YamlDotNet.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <PropertyGroup>
     <VALHEIM_MANAGED>$(VALHEIM_INSTALL)/valheim_Data/Managed</VALHEIM_MANAGED>
@@ -161,12 +121,6 @@
     <Exec Command="powershell.exe -ExecutionPolicy RemoteSigned -File &quot;$(SolutionDir)publish.ps1&quot; -Target &quot;$(ConfigurationName)&quot; -TargetPath &quot;$(TargetDir.TrimEnd('\'))&quot; -TargetAssembly &quot;$(TargetFileName)&quot; -ValheimPath &quot;$(VALHEIM_INSTALL.TrimEnd('\'))&quot; -DeployPath &quot;$(MOD_DEPLOYPATH.TrimEnd('\'))&quot; -ProjectPath &quot;$(ProjectDir.TrimEnd('\'))&quot; " />
     <CallTarget Targets="CopyToUnity" Condition="Exists('$(UNITY_FOLDER)')" />
   </Target>
-  <Target Name="CopyToModManagers" AfterTargets="ILRepacker">
-    <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Modtest\BepInEx\plugins" />
-    <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\Thunderstore Mod Manager\DataFolder\Valheim\profiles\Modtesting\BepInEx\plugins" />
-    <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="C:\Users\carls\AppData\Roaming\com.kesomannen.gale\valheim\profiles\Modtest\BepInEx\plugins" />
-    <Copy SourceFiles="$(TargetDir)\$(TargetFileName)" DestinationFolder="$(ProjectDir)\Package\plugins\" />
-  </Target>
   <PropertyGroup>
     <BuildDependsOn>
       $(BuildDependsOn);
@@ -175,14 +129,16 @@
   </PropertyGroup>
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(ProjectDir)\README.md" "$(ProjectDir)\Package\README.md" /q /y /i
-</PostBuildEvent>
+xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Modtest\BepInEx\plugins\" /q /y /i
+xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\Thunderstore Mod Manager\DataFolder\Valheim\profiles\Modtesting\BepInEx\plugins\" /q /y /i
+xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\com.kesomannen.gale\valheim\profiles\Modtest\BepInEx\plugins\" /q /y /i</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\JotunnLib.2.20.1\build\JotunnLib.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\JotunnLib.2.20.1\build\JotunnLib.props'))" />
     <Error Condition="!Exists('..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets'))" />
+    <Error Condition="!Exists('..\packages\JotunnLib.2.24.3\build\JotunnLib.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\JotunnLib.2.24.3\build\JotunnLib.props'))" />
   </Target>
   <Import Project="..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets" Condition="Exists('..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets')" />
 </Project>

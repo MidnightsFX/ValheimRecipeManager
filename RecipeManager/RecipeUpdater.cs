@@ -26,7 +26,7 @@ namespace RecipeManager
             {
                 if(CheckIfRecipeWasModified(tracked_recipe) == true) { continue; }
 
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Tracked {tracked_recipe.prefab} recipe still has its original recipe in the db. Modifying."); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Tracked {tracked_recipe.prefab} recipe still has its original recipe in the db. Modifying."); }
                 ApplyRecipeModifcations(tracked_recipe);
             }
         }
@@ -56,7 +56,7 @@ namespace RecipeManager
 
         public static void ApplyRecipeModifcations(TrackedRecipe tracked_recipe)
         {
-            if (Config.EnableDebugMode.Value) 
+            if (ValConfig.EnableDebugMode.Value) 
             {
                 if (tracked_recipe.updatedRecipe != null)
                 {
@@ -95,21 +95,21 @@ namespace RecipeManager
             // Disable Action
             if (tracked_recipe.action == DataObjects.Action.Disable)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Disable Action called for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Disable Action called for {tracked_recipe.prefab} recipe"); }
                 update_applied = DisableRecipe(tracked_recipe.originalRecipe);
             }
 
             // Delete Action
             if (tracked_recipe.action == DataObjects.Action.Delete)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Delete Action called for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Delete Action called for {tracked_recipe.prefab} recipe"); }
                 update_applied = DeleteRecipe(tracked_recipe.originalRecipe);
             }
 
             // Modify Action
             if (tracked_recipe.action == DataObjects.Action.Modify)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Modify Action called for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Modify Action called for {tracked_recipe.prefab} recipe"); }
                 if (ObjectDB.instance.m_recipes.Contains(tracked_recipe.updatedRecipe)) {
                     DeleteRecipe(tracked_recipe.originalRecipe); // Ensure the original recipe is removed if it still exists, because the modified one has been added
                     update_applied = true;
@@ -126,20 +126,20 @@ namespace RecipeManager
             // Add Action
             if (tracked_recipe.action == DataObjects.Action.Add)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Add Action called for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Add Action called for {tracked_recipe.prefab} recipe"); }
                 update_applied = AddRecipe(tracked_recipe.updatedRecipe);
             }
 
             // Enable Action
             if (tracked_recipe.action == DataObjects.Action.Enable)
             {
-                if (Config.EnableDebugMode.Value) {
+                if (ValConfig.EnableDebugMode.Value) {
                     Logger.LogWarning($"Enable Action called for {tracked_recipe.prefab} recipe. Are you sure you wanted that? Most recipes are already enabled.");
                 }
                 update_applied = EnableRecipe(tracked_recipe.originalRecipe);
             }
 
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe update applied? {update_applied}"); }
+            if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe update applied? {update_applied}"); }
         }
 
         public static void ReverseRecipeModifications(TrackedRecipe tracked_recipe)
@@ -148,21 +148,21 @@ namespace RecipeManager
             // Disable Action
             if (tracked_recipe.action == DataObjects.Action.Disable)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting disable for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Reverting disable for {tracked_recipe.prefab} recipe"); }
                 update_applied = EnableRecipe(tracked_recipe.originalRecipe);
             }
 
             // Delete Action
             if (tracked_recipe.action == DataObjects.Action.Delete)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting delete for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Reverting delete for {tracked_recipe.prefab} recipe"); }
                 update_applied = AddRecipe(tracked_recipe.originalRecipe);
             }
 
             // Modify Action
             if (tracked_recipe.action == DataObjects.Action.Modify)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reversing modify for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Reversing modify for {tracked_recipe.prefab} recipe"); }
                 update_applied = ModifyRecipeInODB(tracked_recipe.updatedRecipe, tracked_recipe.originalRecipe);
                 ModifyRecipeInJotunnManager(tracked_recipe.updatedCustomRecipe, tracked_recipe.originalCustomRecipe);
             }
@@ -170,7 +170,7 @@ namespace RecipeManager
             // Add Action
             if (tracked_recipe.action == DataObjects.Action.Add)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Reverting add for {tracked_recipe.prefab} recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Reverting add for {tracked_recipe.prefab} recipe"); }
                 update_applied = DeleteRecipe(tracked_recipe.updatedRecipe);
             }
 
@@ -180,7 +180,7 @@ namespace RecipeManager
                 update_applied = DisableRecipe(tracked_recipe.originalRecipe);
             }
 
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe modification reverted? {update_applied}"); }
+            if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe modification reverted? {update_applied}"); }
         }
 
         public static bool CheckIfRecipeWasModified(TrackedRecipe trackedRecipe)
@@ -204,7 +204,7 @@ namespace RecipeManager
             if (trackedRecipe.action == DataObjects.Action.Enable || trackedRecipe.action == DataObjects.Action.Disable) {
                 modified = false;
             }
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo($"recipe {trackedRecipe.recipeName} already modified? {modified}"); }
+            if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"recipe {trackedRecipe.recipeName} already modified? {modified}"); }
             return modified;
         }
 
@@ -214,7 +214,7 @@ namespace RecipeManager
             TrackedRecipes.Clear();
             foreach (KeyValuePair<string, RecipeModification>  recipeMod in RecipesToModify)
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Constructing modification details for {recipeMod.Key}"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Constructing modification details for {recipeMod.Key}"); }
                 // if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Data: {recipeMod.Value}"); }
                 TrackedRecipe tRecipeDetails = new TrackedRecipe();
                 tRecipeDetails.action = recipeMod.Value.action;
@@ -237,16 +237,16 @@ namespace RecipeManager
                     tRecipeDetails.originalRecipe = ObjectDB.instance.m_recipes[index];
                 } else
                 {
-                    if (Config.EnableDebugMode.Value) { Logger.LogWarning($"Could not find recipe for: {recipeMod.Value.prefab}"); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogWarning($"Could not find recipe for: {recipeMod.Value.prefab}"); }
                 }
                 // Tracked recipe has a recipe definition so we build the new recipe/custom recipe
                 if (recipeMod.Value.recipe != null)
                 {
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Found custom recipe modifications, building out definition."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Found custom recipe modifications, building out definition."); }
                     
                     RequirementConfig[] cing_recipe = new RequirementConfig[0];
                     if (recipeMod.Value.recipe.noRecipeCost == false) {
-                        if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Setting recipe cost requirements."); }
+                        if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Setting recipe cost requirements."); }
 
                         cing_recipe = new RequirementConfig[recipeMod.Value.recipe.ingredients.Count];
                         int i_index = 0;
@@ -271,15 +271,15 @@ namespace RecipeManager
                         RequireOnlyOneIngredient = recipeMod.Value.recipe.anyOneResource,
                         Requirements = cing_recipe
                     });
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Built new custom recipe."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Built new custom recipe."); }
                     Recipe nRecipe = updatedCustomRecipe.Recipe;
                     CustomItem targetPrefab = ItemManager.Instance.GetItem(recipeMod.Value.prefab);
                     if (targetPrefab != null)
                     {
-                        if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Found existing custom item, storing for comparision."); }
+                        if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Found existing custom item, storing for comparision."); }
                         tRecipeDetails.originalCustomRecipe = targetPrefab.Recipe;
                     }
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Resolving references on custom recipe."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Resolving references on custom recipe."); }
                     if (recipeMod.Value.craftedAt != null)
                     {
                         try {
@@ -327,7 +327,7 @@ namespace RecipeManager
                     
                     nRecipe.name = "Recipe_" + recipeMod.Key;
 
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Resolving resource requirement references."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Resolving resource requirement references."); }
                     foreach (Piece.Requirement res in nRecipe.m_resources)
                     {
                         var res_prefab = ObjectDB.instance.GetItemPrefab(res.m_resItem.name.Replace("JVLmock_", ""));
@@ -342,9 +342,9 @@ namespace RecipeManager
 
                     tRecipeDetails.updatedRecipe = nRecipe;
                     tRecipeDetails.updatedCustomRecipe = updatedCustomRecipe;
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Set updated recipe and updatedCustomRecipe."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Set updated recipe and updatedCustomRecipe."); }
                 }
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Adding tracked Recipe"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Adding tracked Recipe"); }
                 TrackedRecipes.Add(tRecipeDetails);
             }
         }

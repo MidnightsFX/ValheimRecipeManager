@@ -1,10 +1,7 @@
 ﻿using Jotunn.Entities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 using static Piece;
 
 namespace RecipeManager.Common
@@ -78,7 +75,7 @@ namespace RecipeManager.Common
             public bool EnablePiece { get; set; } = true;
             public Heightmap.Biome OnlyInSelectBiome { get; set; } = Heightmap.Biome.All;
             public bool CultivatedGroundOnly { get; set; } = false;
-            public bool GroundPlacement {  get; set; } = true;
+            public bool GroundPlacement {  get; set; } = false;
         }
 
         [DataContract]

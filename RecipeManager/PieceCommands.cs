@@ -23,7 +23,7 @@ namespace RecipeManager
         public override void Run(string[] args)
         {
             PieceUpdater.RevertPieceModifications();
-            Config.ReloadPieceFiles();
+            ValConfig.ReloadPieceFiles();
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
         }
@@ -38,12 +38,12 @@ namespace RecipeManager
 
         public override void Run(string[] args)
         {
-            if (Config.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump piece list"); }
+            if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump piece list"); }
             String ODBRecipes_path = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllPiecesDebug.yaml");
             PieceModificationCollection recipeCollection = new PieceModificationCollection();
             using (StreamWriter writetext = new StreamWriter(ODBRecipes_path))
             {
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo("Gathering Pieces"); }
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Gathering Pieces"); }
                 List<Piece> pieces = Resources.FindObjectsOfTypeAll<Piece>().Where(pc => pc.name.EndsWith("(Clone)") != true && Regex.IsMatch(pc.name.Trim(), @"\(\d+\)") != true ).ToList<Piece>();
 
                 foreach (Piece pc in pieces)
@@ -51,7 +51,7 @@ namespace RecipeManager
                     if (pc == null) { continue; }
                     if (pc.name == null) { continue; }
                     // This list of just broken recipes
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Building Recipe {pc.m_name}"); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Recipe {pc.m_name}"); }
                     PieceModification piece_as_mod = new PieceModification();
 
                     piece_as_mod.action = PieceAction.Enable;
@@ -106,21 +106,21 @@ namespace RecipeManager
                             }
                             catch (Exception e)
                             {
-                                if (Config.EnableDebugMode.Value) { Logger.LogWarning($"Piece requirement setup error {req} \n{e}"); }
+                                if (ValConfig.EnableDebugMode.Value) { Logger.LogWarning($"Piece requirement setup error {req} \n{e}"); }
                             }
                         }
                     }
                     piece_as_mod.requirements = requirements;
 
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Adding {piece_as_mod.prefab} to collection."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Adding {piece_as_mod.prefab} to collection."); }
                     if (!recipeCollection.PieceModifications.ContainsKey(piece_as_mod.prefab)) {
                         recipeCollection.PieceModifications.Add(piece_as_mod.prefab, piece_as_mod);
                     }
 
-                    if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Piece {piece_as_mod.prefab} Added."); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Piece {piece_as_mod.prefab} Added."); }
                 }
-                if (Config.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing recipes."); }
-                var yaml = Config.yamlserializer.Serialize(recipeCollection);
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing recipes."); }
+                var yaml = ValConfig.yamlserializer.Serialize(recipeCollection);
                 writetext.WriteLine(yaml);
                 Logger.LogInfo($"Recipes dumped to file {ODBRecipes_path}");
             }

@@ -1,3 +1,12 @@
+ **0.4.4**
+---
+```
+- Fixes filepath detection not working on linux
+- Removes embedded yaml.net, now requires yaml.net to be installed via the mod loader
+- Fixes server synced piece modifications not being applied in some cases
+- Defaults 'GroundPlacement' for piece modifications to false
+```
+
  **0.4.3**
 ---
 ```

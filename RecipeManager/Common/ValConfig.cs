@@ -7,13 +7,12 @@ using System.Collections;
 using System.IO;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
-using Logger = Jotunn.Logger;
 using static RecipeManager.Common.DataObjects;
 using System.Collections.Generic;
 
 namespace RecipeManager.Common
 {
-    class Config
+    class ValConfig
     {
         public static ConfigFile cfg;
         public static ConfigEntry<bool> EnableDebugMode;
@@ -23,56 +22,29 @@ namespace RecipeManager.Common
         public static String pieceConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Pieces.yaml");
         public static List<string> PieceConfigFilePaths = new List<string>();
         public static IDeserializer yamldeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
-        public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).DisableAliases().Build();
+        public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults).Build();
 
         private static CustomRPC RecipeConfigRPC;
         private static CustomRPC PiecesConfigRPC;
 
-        public Config(ConfigFile cfgref)
+        public ValConfig(ConfigFile cfgref)
         {
             // Init with the default plugin config file
             cfg = cfgref;
             cfg.SaveOnConfigSet = true;
             CreateConfigValues(cfgref);
-            var mainfilepath = Paths.ConfigPath;
-
-            FileSystemWatcher maincfgFSWatcher = new FileSystemWatcher();
-            maincfgFSWatcher.Path = mainfilepath;
-            maincfgFSWatcher.NotifyFilter = NotifyFilters.LastWrite;
-            maincfgFSWatcher.Filter = $"{RecipeManager.PluginGUID}.cfg";
-            maincfgFSWatcher.Changed += new FileSystemEventHandler(UpdateMainConfigFile);
-            maincfgFSWatcher.Created += new FileSystemEventHandler(UpdateMainConfigFile);
-            maincfgFSWatcher.Renamed += new RenamedEventHandler(UpdateMainConfigFile);
-            maincfgFSWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-            maincfgFSWatcher.EnableRaisingEvents = true;
-
-            Logger.LogInfo("Config filewatcher initialized.");
             SetupSecondaryConfigFile();
             SetupConfigRPCs();
         }
 
-        private void CreateConfigValues(ConfigFile Config)
-        {
+        private void CreateConfigValues(ConfigFile Config) {
             // Debugmode
             EnableDebugMode = Config.Bind("Client config", "EnableDebugMode", false,
                 new ConfigDescription("Enables Debug logging for Recipe Manager. This is client side and is not syncd with the server.",
                 null,
                 new ConfigurationManagerAttributes { IsAdvanced = true }));
-        }
-
-        private static void UpdateMainConfigFile(object sender, FileSystemEventArgs e)
-        {
-            if (!File.Exists(Paths.ConfigPath)) { return; }
-            try
-            {
-                cfg.SaveOnConfigSet = false;
-                cfg.Reload();
-                cfg.SaveOnConfigSet = true;
-            }
-            catch
-            {
-                Logger.LogError($"There was an issue reloading {RecipeManager.PluginGUID}.cfg.");
-            }
+            EnableDebugMode.SettingChanged += Logger.enableDebugLogging;
+            Logger.CheckEnableDebugLogging();
         }
 
         private static void SetupSecondaryConfigFile()
@@ -238,7 +210,7 @@ namespace RecipeManager.Common
                 recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
                 recipeFW.EnableRaisingEvents = true;
             }
-            PieceUpdater.UpdateRecipeModificationsFromList(allPieceData);
+            PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
         }
 
         internal static void ReloadPieceFiles()
@@ -256,7 +228,7 @@ namespace RecipeManager.Common
                 }
                 catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
             }
-            PieceUpdater.UpdateRecipeModificationsFromList(allPieceData);
+            PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
         }
 
         internal static void ReloadRecipeFiles()
@@ -282,6 +254,9 @@ namespace RecipeManager.Common
         {
             string filename = "";
             string[] split_filepath = fullfilepath.Split('\\');
+            if (split_filepath.Length < 2) {
+                split_filepath = fullfilepath.Split('/');
+            }
             // zero based and the last item
             Logger.LogInfo($"File name check: {string.Join(",", split_filepath)}");
             filename = split_filepath[split_filepath.Length - 2];
@@ -316,7 +291,7 @@ namespace RecipeManager.Common
             if (!File.Exists(pieceConfigFilePath)) { return; }
             if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Piece filewatcher called, updating piece Modification values."); }
             PieceUpdater.RevertPieceModifications();
-            PieceUpdater.UpdateRecipeModifications(ReadAllPieceConfigs());
+            PieceUpdater.UpdatePieceModifications(ReadAllPieceConfigs());
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
@@ -360,14 +335,14 @@ namespace RecipeManager.Common
         private static ZPackage SendRecipeConfigs()
         {
             ZPackage package = new ZPackage();
-            package.Write(ReadAllRecipeConfigs().ToString());
+            package.Write(yamlserializer.Serialize(ReadAllRecipeConfigs()));
             return package;
         }
 
         private static ZPackage SendPieceConfigs()
         {
             ZPackage package = new ZPackage();
-            package.Write(ReadAllPieceConfigs().ToString());
+            package.Write(yamlserializer.Serialize(ReadAllPieceConfigs()));
             return package;
         }
 
@@ -434,7 +409,7 @@ namespace RecipeManager.Common
             var yaml = package.ReadString();
             RecipeUpdater.RecipeRevert();
             try {
-                var recipeFileData = Config.yamldeserializer.Deserialize<RecipeModificationCollection>(yaml);
+                var recipeFileData = ValConfig.yamldeserializer.Deserialize<RecipeModificationCollection>(yaml);
                 RecipeUpdater.UpdateRecipeModifications(recipeFileData);
             } catch {
                 Logger.LogWarning($"Recieved invalid configuration, all recipes reverted.");
@@ -449,8 +424,9 @@ namespace RecipeManager.Common
             var yaml = package.ReadString();
             PieceUpdater.RevertPieceModifications();
             try {
-                var recipeFileData = Config.yamldeserializer.Deserialize<PieceModificationCollection>(yaml);
-                PieceUpdater.UpdateRecipeModifications(recipeFileData);
+                PieceUpdater.UpdatePieceModificationsFromRPC(yaml);
+                var recipeFileData = ValConfig.yamldeserializer.Deserialize<PieceModificationCollection>(yaml);
+                PieceUpdater.UpdatePieceModifications(recipeFileData);
             } catch {
                 Logger.LogWarning($"Recieved invalid configuration, all pieces reverted.");
             }
