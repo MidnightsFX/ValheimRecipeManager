@@ -24,6 +24,7 @@ namespace RecipeManager
             ValConfig.ReloadRecipeFiles();
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
+            ValConfig.SendUpdatedRecipeConfigs();
         }
     }
 

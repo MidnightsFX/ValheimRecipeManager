@@ -75,6 +75,9 @@
     <Content Include="Package\icon.png" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="ILRepack, Version=2.0.33.0, Culture=neutral, PublicKeyToken=c3e9373f1c31208e, processorArchitecture=MSIL">
+      <HintPath>..\packages\ILRepack.Lib.2.0.33\lib\net472\ILRepack.dll</HintPath>
+    </Reference>
     <Reference Include="Jotunn, Version=2.24.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\JotunnLib.2.24.3\lib\net462\Jotunn.dll</HintPath>
     </Reference>
@@ -133,6 +136,7 @@ xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\r2modmanPlus-local\Valheim
 xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\Thunderstore Mod Manager\DataFolder\Valheim\profiles\Modtesting\BepInEx\plugins\" /q /y /i
 xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\com.kesomannen.gale\valheim\profiles\Modtest\BepInEx\plugins\" /q /y /i</PostBuildEvent>
   </PropertyGroup>
+  <Import Project="..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets" Condition="Exists('..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
@@ -140,5 +144,4 @@ xcopy "$(TargetPath)" "C:\Users\carls\AppData\Roaming\com.kesomannen.gale\valhei
     <Error Condition="!Exists('..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets'))" />
     <Error Condition="!Exists('..\packages\JotunnLib.2.24.3\build\JotunnLib.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\JotunnLib.2.24.3\build\JotunnLib.props'))" />
   </Target>
-  <Import Project="..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets" Condition="Exists('..\packages\ILRepack.Lib.MSBuild.Task.2.0.33\build\ILRepack.Lib.MSBuild.Task.targets')" />
 </Project>

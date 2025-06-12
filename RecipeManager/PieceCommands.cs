@@ -26,6 +26,7 @@ namespace RecipeManager
             ValConfig.ReloadPieceFiles();
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
+            ValConfig.SendUpdatedPieceConfigs();
         }
     }
 

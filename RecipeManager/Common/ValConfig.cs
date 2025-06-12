@@ -346,6 +346,14 @@ namespace RecipeManager.Common
             return package;
         }
 
+        public static void SendUpdatedPieceConfigs() {
+            PiecesConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
+        }
+
+        public static void SendUpdatedRecipeConfigs() {
+            RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
+        }
+
         private static RecipeModificationCollection ReadAllRecipeConfigs()
         {
             List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();

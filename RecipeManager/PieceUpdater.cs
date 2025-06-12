@@ -81,10 +81,7 @@ namespace RecipeManager
                 pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation;
                 pcomp.m_allowedInDungeons = piece.AllowedInDungeon;
                 pcomp.m_canBeRemoved = piece.CanBeDeconstructed;
-                if (piece.PieceCategory != Piece.PieceCategory.All)
-                {
-                    pcomp.m_category = piece.PieceCategory;
-                }
+                pcomp.m_category = piece.PieceCategory;
                 if (piece.ComfortAmount != -1)
                 {
                     pcomp.m_comfort = piece.ComfortAmount;
@@ -197,6 +194,11 @@ namespace RecipeManager
                 tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
                 tpiece.SpaceRequired = piece.Value.SpaceRequired;
                 tpiece.GroundPlacement = piece.Value.GroundPlacement;
+                if (piece.Value.PieceCategory != Piece.PieceCategory.All) {
+                    tpiece.PieceCategory = piece.Value.PieceCategory;
+                } else {
+                    tpiece.PieceCategory = tpiece.originalPiece.m_category;
+                }
                 // Finally add the tracked piece modifications
                 TrackedPieces.Add(tpiece);
             }

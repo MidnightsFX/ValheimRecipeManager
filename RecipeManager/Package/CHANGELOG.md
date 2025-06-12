@@ -1,3 +1,10 @@
+ **0.4.5**
+---
+```
+- Ensures RPC synchronization when an admin reloads pieces/recipes
+- Fixes piece categories not being mutated correctly
+```
+
  **0.4.4**
 ---
 ```
