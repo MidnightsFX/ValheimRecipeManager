@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using UnityEngine;
 using static Piece;
 
 namespace RecipeManager.Common
@@ -22,6 +23,71 @@ namespace RecipeManager.Common
             Disable,
             Modify,
             Enable
+        }
+
+        public enum ConversionAction
+        {
+            Add,
+            Modify,
+            Remove
+        }
+
+        public enum ConversionType
+        {
+            Fermenter,
+            Smelter,
+            CookingStation
+        }
+
+        public class ConversionModification
+        {
+            public ConversionAction action { get; set; }
+            public string prefab { get; set; }
+            public List<ConversionDef> conversions { get; set; }
+            // public ConversionAttributes propertyChanges { get; set; }
+            public int maxOres { get; set; } = 0;
+            public int maxFuel { get; set; } = 0;
+            public int fuelPerProduct { get; set; } = 0;
+            public bool requiresFuel { get; set; } = true;
+            public float conversionTime { get; set; }
+            public string fuelItem { get; set; }
+            public string overCookedItem { get; set; }
+            public float overCookedTime { get; set; }
+            public int secPerFuel { get; set; } 
+        }
+
+        public class ConversionDef
+        {
+            public string fromPrefab { get; set; }
+            public string toPrefab { get; set; }
+            public int amount { get; set; } = 1;
+            public float cookTime { get; set; } = 0f;
+        }
+
+        public class ConversionAttributes
+        {
+            public bool requiresRoof { get; set; } = false;
+            public bool requiresFuel { get; set; } = false;
+        }
+
+        public class TrackedConversion
+        {
+            public ConversionAction action { get; set; }
+            public GameObject prefab { get; set; }
+            public ConversionType convertType { get; set; }
+            public Smelter originalSmelter { get; set; }
+            public Fermenter originalFermenter { get; set; }
+            public CookingStation originalCookingStation { get; set; }
+            public List<Smelter.ItemConversion> updatedSmelterConversions { get; set; }
+            public List<Fermenter.ItemConversion> updatedFermenterConversions { get; set; }
+            public List<CookingStation.ItemConversion> updatedCookingConversions { get; set; }
+            public int maxOres { get; set; }
+            public int maxFuel { get; set; }
+            public int fuelPerProduct { get; set; }
+            public float conversionTime { get; set; }
+            public bool requiresFuel { get; set; }
+            public float overCookedTime { get; set; }
+            public ItemDrop fuelItem { get; set; }
         }
 
         public class TrackedPiece
