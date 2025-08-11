@@ -1,5 +1,4 @@
-﻿using Jotunn;
-using Jotunn.Managers;
+﻿using Jotunn.Managers;
 using RecipeManager.Common;
 using System;
 using System.Collections.Generic;
@@ -178,7 +177,7 @@ namespace RecipeManager
                     }
                 } else {
                     // If we do not have the crafting station set, it should be set to its current- this ensures it is not modified but that we support nullifying it
-                    tpiece.RequiredToPlaceCraftingStation = PrefabManager.Instance.GetPrefab(piece.Value.prefab).GetComponent<Piece>().m_craftingStation; ;
+                    tpiece.RequiredToPlaceCraftingStation = PrefabManager.Instance.GetPrefab(piece.Value.prefab).GetComponent<Piece>().m_craftingStation;
                 }
 
                 tpiece.IsUpgradeForStation = piece.Value.IsUpgradeForStation;
@@ -220,7 +219,8 @@ namespace RecipeManager
         {
             Logger.LogInfo($"RPC Recieved: {rpcRecieved}");
             Logger.LogInfo($"RPC Data: {rpcRecieved.Length}");
-            //var pieceData = Config.yamldeserializer.Deserialize<PieceModificationCollection>(rpcRecieved);
+            var pieceData = ValConfig.yamldeserializer.Deserialize<PieceModificationCollection>(rpcRecieved);
+            UpdatePieceModifications(pieceData);
         }
 
         public static void UpdatePieceModifications(PieceModificationCollection PieceMods)

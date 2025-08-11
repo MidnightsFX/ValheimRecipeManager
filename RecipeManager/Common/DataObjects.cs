@@ -39,6 +39,12 @@ namespace RecipeManager.Common
             CookingStation
         }
 
+        [DataContract]
+        public class ConversionModificationCollection
+        {
+            public Dictionary<String, ConversionModification> ConversionModifications { get; set; } = new Dictionary<string, ConversionModification>();
+        }
+
         public class ConversionModification
         {
             public ConversionAction action { get; set; }
@@ -48,26 +54,21 @@ namespace RecipeManager.Common
             public int maxOres { get; set; } = 0;
             public int maxFuel { get; set; } = 0;
             public int fuelPerProduct { get; set; } = 0;
-            public bool requiresFuel { get; set; } = true;
+            public bool requiresFuel { get; set; } = false;
+            public bool requiresFire { get; set; } = false;
             public float conversionTime { get; set; }
             public string fuelItem { get; set; }
             public string overCookedItem { get; set; }
             public float overCookedTime { get; set; }
-            public int secPerFuel { get; set; } 
+            public float secPerFuel { get; set; } 
         }
 
         public class ConversionDef
         {
             public string fromPrefab { get; set; }
             public string toPrefab { get; set; }
-            public int amount { get; set; } = 1;
+            public int amount { get; set; }
             public float cookTime { get; set; } = 0f;
-        }
-
-        public class ConversionAttributes
-        {
-            public bool requiresRoof { get; set; } = false;
-            public bool requiresFuel { get; set; } = false;
         }
 
         public class TrackedConversion
@@ -86,7 +87,9 @@ namespace RecipeManager.Common
             public int fuelPerProduct { get; set; }
             public float conversionTime { get; set; }
             public bool requiresFuel { get; set; }
+            public bool requiresFire { get; set; }
             public float overCookedTime { get; set; }
+            public float secPerFuel { get; set; }
             public ItemDrop fuelItem { get; set; }
         }
 

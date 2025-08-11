@@ -41,7 +41,7 @@ namespace RecipeManager
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump piece list"); }
             String ODBRecipes_path = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllPiecesDebug.yaml");
-            PieceModificationCollection recipeCollection = new PieceModificationCollection();
+            PieceModificationCollection pieceCollection = new PieceModificationCollection();
             using (StreamWriter writetext = new StreamWriter(ODBRecipes_path))
             {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Gathering Pieces"); }
@@ -52,7 +52,7 @@ namespace RecipeManager
                     if (pc == null) { continue; }
                     if (pc.name == null) { continue; }
                     // This list of just broken recipes
-                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Recipe {pc.m_name}"); }
+                    if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Piece definition {pc.m_name}"); }
                     PieceModification piece_as_mod = new PieceModification();
 
                     piece_as_mod.action = PieceAction.Enable;
@@ -114,14 +114,14 @@ namespace RecipeManager
                     piece_as_mod.requirements = requirements;
 
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Adding {piece_as_mod.prefab} to collection."); }
-                    if (!recipeCollection.PieceModifications.ContainsKey(piece_as_mod.prefab)) {
-                        recipeCollection.PieceModifications.Add(piece_as_mod.prefab, piece_as_mod);
+                    if (!pieceCollection.PieceModifications.ContainsKey(piece_as_mod.prefab)) {
+                        pieceCollection.PieceModifications.Add(piece_as_mod.prefab, piece_as_mod);
                     }
 
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Piece {piece_as_mod.prefab} Added."); }
                 }
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing recipes."); }
-                var yaml = ValConfig.yamlserializer.Serialize(recipeCollection);
+                var yaml = ValConfig.yamlserializer.Serialize(pieceCollection);
                 writetext.WriteLine(yaml);
                 Logger.LogInfo($"Recipes dumped to file {ODBRecipes_path}");
             }

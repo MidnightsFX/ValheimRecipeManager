@@ -21,11 +21,14 @@ namespace RecipeManager.Common
         public static List<string> RecipeConfigFilePaths = new List<string>();
         public static String pieceConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Pieces.yaml");
         public static List<string> PieceConfigFilePaths = new List<string>();
+        public static String ConversionConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Conversions.yaml");
+        public static List<string> ConversionConfigFilePaths = new List<string>();
         public static IDeserializer yamldeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
         public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults).Build();
 
         private static CustomRPC RecipeConfigRPC;
         private static CustomRPC PiecesConfigRPC;
+        private static CustomRPC ConversionConfigRPC;
 
         public ValConfig(ConfigFile cfgref)
         {
@@ -52,6 +55,7 @@ namespace RecipeManager.Common
             string externalConfigFolder = GetSecondaryConfigDirectoryPath();
             bool hasRecipeConfig = false;
             bool hasPieceConfig = false;
+            bool hasConversionConfig = false;
 
             string[] presentFiles = Directory.GetFiles(externalConfigFolder);
 
@@ -68,6 +72,12 @@ namespace RecipeManager.Common
                     if (EnableDebugMode.Value) { Logger.LogInfo($"Found pieces configuration yaml: {configFile}"); }
                     PieceConfigFilePaths.Add(configFile);
                     hasPieceConfig = true;
+                }
+                if (configFile.Contains("Conversions.yaml"))
+                {
+                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found Conversion configuration yaml: {configFile}"); }
+                    ConversionConfigFilePaths.Add(configFile);
+                    hasConversionConfig = true;
                 }
             }
 
@@ -159,6 +169,22 @@ namespace RecipeManager.Common
                 }
             }
 
+            // write out the piece config defaults if they do not exist
+            if (hasConversionConfig == false)
+            {
+                Logger.LogInfo("Conversion file missing, recreating.");
+                using (StreamWriter writetext = new StreamWriter(ConversionConfigFilePath))
+                {
+                    String header = @"############################################################################
+# Conversion Manipulation Config
+############################################################################
+";
+                    // Write the header here too
+                    writetext.WriteLine(header);
+                    writetext.WriteLine(YamlPieceConfigDefinition());
+                }
+            }
+
             List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
 
             foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
@@ -211,6 +237,32 @@ namespace RecipeManager.Common
                 recipeFW.EnableRaisingEvents = true;
             }
             PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
+
+            List<ConversionModificationCollection> allConversionData = new List<ConversionModificationCollection>();
+
+            foreach (var secondaryConversionPath in ConversionConfigFilePaths)
+            {
+                // read out the file
+                string convData = File.ReadAllText(secondaryConversionPath);
+                try
+                {
+                    var convDataSerialized = yamldeserializer.Deserialize<ConversionModificationCollection>(convData);
+                    allConversionData.Add(convDataSerialized);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading conversion data from {secondaryConversionPath}, it will not be used. Error: {e}"); }
+                // File watcher for the recipe
+                FileSystemWatcher recipeFW = new FileSystemWatcher();
+                recipeFW.Path = externalConfigFolder;
+                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
+                recipeFW.Filter = $"{DetermineFileName(secondaryConversionPath)}";
+                recipeFW.Changed += new FileSystemEventHandler(UpdateConversionConfigFilesOnChange);
+                recipeFW.Created += new FileSystemEventHandler(UpdateConversionConfigFilesOnChange);
+                recipeFW.Renamed += new RenamedEventHandler(UpdateConversionConfigFilesOnChange);
+                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+                recipeFW.EnableRaisingEvents = true;
+            }
+            ConversionUpdater.UpdateConversionModificationsFromList(allConversionData);
         }
 
         internal static void ReloadPieceFiles()
@@ -229,6 +281,24 @@ namespace RecipeManager.Common
                 catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
             }
             PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
+        }
+
+        internal static void ReloadConversionFiles()
+        {
+            List<ConversionModificationCollection> allPieceData = new List<ConversionModificationCollection>();
+
+            foreach (var secondaryPieceFile in ConversionConfigFilePaths)
+            {
+                // read out the file
+                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
+                try
+                {
+                    var piecefiledata = yamldeserializer.Deserialize<ConversionModificationCollection>(recipeConfigData);
+                    allPieceData.Add(piecefiledata);
+                }
+                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
+            }
+            ConversionUpdater.UpdateConversionModificationsFromList(allPieceData);
         }
 
         internal static void ReloadRecipeFiles()
@@ -307,7 +377,34 @@ namespace RecipeManager.Common
                     Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
                 }
             }
+        }
 
+        private static void UpdateConversionConfigFilesOnChange(object sender, FileSystemEventArgs e)
+        {
+            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Piece filewatcher called, updating piece Modification values."); }
+            ConversionUpdater.RevertConversionModifications();
+            ConversionUpdater.UpdateConversionModifications(ReadAllConversionConfigs());
+            ConversionUpdater.BuildConversionTracker();
+            ConversionUpdater.ConversionUpdateRunner();
+            if (EnableDebugMode.Value) { Logger.LogInfo("Updated ConversionModifications in-memory values."); }
+            if (GUIManager.IsHeadless()) {
+                try
+                {
+                    ConversionConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
+                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent levels configs to clients."); }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
+                }
+            }
+            else
+            {
+                if (EnableDebugMode.Value)
+                {
+                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
+                }
+            }
         }
 
 
@@ -324,6 +421,7 @@ namespace RecipeManager.Common
             SynchronizationManager.Instance.AddInitialSynchronization(RecipeConfigRPC, SendRecipeConfigs);
             PiecesConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_pieces_rpc", OnServerRecieveConfigs, OnClientReceivePieceConfigs);
             SynchronizationManager.Instance.AddInitialSynchronization(PiecesConfigRPC, SendPieceConfigs);
+            ConversionConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_conversion_rpc", OnServerRecieveConfigs, OnClientReceiveConversionConfigs);
         }
 
         public static IEnumerator OnServerRecieveConfigs(long sender, ZPackage package)
@@ -412,6 +510,35 @@ namespace RecipeManager.Common
             return allRecipeModifications;
         }
 
+        private static ConversionModificationCollection ReadAllConversionConfigs()
+        {
+            List<ConversionModificationCollection> allPieceData = new List<ConversionModificationCollection>();
+
+            foreach (var convFile in PieceConfigFilePaths)
+            {
+                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {convFile}."); }
+                // read out the file
+                string convConfigData = File.ReadAllText(convFile);
+                try
+                {
+                    var convFileData = yamldeserializer.Deserialize<ConversionModificationCollection>(convConfigData);
+                    allPieceData.Add(convFileData);
+                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
+                }
+                catch (Exception ex) { Logger.LogError($"There was an error reading conversion data from {convFile}, it will not be used. Error: {ex}"); }
+            }
+            ConversionModificationCollection allRecipeModifications = new ConversionModificationCollection();
+
+            foreach (ConversionModificationCollection rcol in allPieceData)
+            {
+                foreach (KeyValuePair<String, ConversionModification> entry in rcol.ConversionModifications)
+                {
+                    allRecipeModifications.ConversionModifications.Add(entry.Key, entry.Value);
+                }
+            }
+            return allRecipeModifications;
+        }
+
         private static IEnumerator OnClientReceiveRecipeConfigs(long sender, ZPackage package)
         {
             var yaml = package.ReadString();
@@ -436,10 +563,24 @@ namespace RecipeManager.Common
                 var recipeFileData = ValConfig.yamldeserializer.Deserialize<PieceModificationCollection>(yaml);
                 PieceUpdater.UpdatePieceModifications(recipeFileData);
             } catch {
-                Logger.LogWarning($"Recieved invalid configuration, all pieces reverted.");
+                Logger.LogWarning($"Recieved invalid configuration, pieces changes ignored.");
             }
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
+            yield return null;
+        }
+
+        private static IEnumerator OnClientReceiveConversionConfigs(long sender, ZPackage package)
+        {
+            var yaml = package.ReadString();
+            ConversionUpdater.RevertConversionModifications();
+            try {
+                ConversionUpdater.UpdateConversionModificationsFromRPC(yaml);
+            } catch {
+                Logger.LogWarning($"Recieved invalid configuration, conversions changes ignored.");
+            }
+            ConversionUpdater.BuildConversionTracker();
+            ConversionUpdater.ConversionUpdateRunner();
             yield return null;
         }
 
