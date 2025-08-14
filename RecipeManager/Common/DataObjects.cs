@@ -39,6 +39,33 @@ namespace RecipeManager.Common
             CookingStation
         }
 
+        public enum PrefabSourceType {
+            ExistingPrefab,
+            LoadFromAsset
+        }
+
+        public class SourcePrefab
+        {
+            public PrefabSourceType source { get; set; }
+            public string name { get; set; }
+            public string objectSubPath { get; set; }
+        }
+
+        public class PrefabMod
+        {
+            public SourcePrefab sourcePrefab { get; set; }
+            public string targetPrefab { get; set; }
+            public string targetPrefabPath { get; set; }
+            public Quaternion rotation { get; set; }
+            public Vector3 local_position { get; set; }
+            public Vector3 size { get; set; }
+
+        }
+
+        public class PrefabModifierCollection {
+            public Dictionary<string, PrefabMod> PrefabModifications { get; set; } = new Dictionary<string, PrefabMod>();
+        }
+
         [DataContract]
         public class ConversionModificationCollection
         {

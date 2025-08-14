@@ -25,6 +25,7 @@ namespace RecipeManager
             ItemManager.OnItemsRegistered += RecipeUpdater.InitialRecipesAndSynchronize;
             ItemManager.OnItemsRegistered += PieceUpdater.InitialSychronization;
             ItemManager.OnItemsRegistered += ConversionUpdater.InitialSychronization;
+            ItemManager.OnItemsRegistered += PrefabModifier.Runner;
             MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
             MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
             MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;

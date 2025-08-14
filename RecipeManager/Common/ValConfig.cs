@@ -23,6 +23,8 @@ namespace RecipeManager.Common
         public static List<string> PieceConfigFilePaths = new List<string>();
         public static String ConversionConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Conversions.yaml");
         public static List<string> ConversionConfigFilePaths = new List<string>();
+        public static String ModificationConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Modifications.yaml");
+        public static List<string> ModificationConfigFilePaths = new List<string>();
         public static IDeserializer yamldeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
         public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults).Build();
 

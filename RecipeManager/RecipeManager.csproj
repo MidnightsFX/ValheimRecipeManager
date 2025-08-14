@@ -53,6 +53,7 @@
     <Compile Include="ConversionUpdater.cs" />
     <Compile Include="PieceCommands.cs" />
     <Compile Include="PieceUpdater.cs" />
+    <Compile Include="PrefabModifier.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
     <Compile Include="RecipeCommands.cs" />
     <Compile Include="RecipeManager.cs" />
