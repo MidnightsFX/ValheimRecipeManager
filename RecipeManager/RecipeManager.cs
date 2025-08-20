@@ -1,7 +1,9 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
+using HarmonyLib;
 using Jotunn.Managers;
 using Jotunn.Utils;
+using System.Reflection;
 
 namespace RecipeManager
 {
@@ -21,11 +23,17 @@ namespace RecipeManager
         {
             Log = this.Logger;
             cfg = new Common.ValConfig(Config);
+
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            Harmony harmony = new(PluginGUID);
+            harmony.PatchAll(assembly);
+
+            PrefabModifier.Runner();
+
             // Update the list of Recipes to track, update etc each time the object db is re-init'd
             ItemManager.OnItemsRegistered += RecipeUpdater.InitialRecipesAndSynchronize;
             ItemManager.OnItemsRegistered += PieceUpdater.InitialSychronization;
             ItemManager.OnItemsRegistered += ConversionUpdater.InitialSychronization;
-            ItemManager.OnItemsRegistered += PrefabModifier.Runner;
             MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
             MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
             MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;

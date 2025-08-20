@@ -7,7 +7,7 @@ using static Piece;
 
 namespace RecipeManager.Common
 {
-    internal class DataObjects
+    public class DataObjects
     {
         public enum Action
         {
@@ -51,14 +51,21 @@ namespace RecipeManager.Common
             public string objectSubPath { get; set; }
         }
 
+        public class Vect {
+            public float x { get; set; }
+            public float y { get; set; }
+            public float z { get; set; }
+        }
+
         public class PrefabMod
         {
             public SourcePrefab sourcePrefab { get; set; }
             public string targetPrefab { get; set; }
             public string targetPrefabPath { get; set; }
+            public string sourcePrefabPath { get; set; }
             public Quaternion rotation { get; set; }
             public Vector3 local_position { get; set; }
-            public Vector3 size { get; set; }
+            public Vect size { get; set; }
 
         }
 
