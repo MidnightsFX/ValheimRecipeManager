@@ -1,11 +1,11 @@
 ﻿{
   "name": "RecipeManager",
   "description": "A very lightweight recipe and piece modification framework",
-  "version_number": "0.4.5",
+  "version_number": "0.5.0",
   "website_url": "https://discord.gg/Dmr9PQTy9m",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2202",
-    "ValheimModding-Jotunn-2.21.2",
+    "denikson-BepInExPack_Valheim-5.4.2332",
+    "ValheimModding-Jotunn-2.26.1",
     "ValheimModding-YamlDotNet-16.3.0"
   ]
 }

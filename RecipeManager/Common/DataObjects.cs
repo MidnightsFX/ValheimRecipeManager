@@ -54,8 +54,8 @@ namespace RecipeManager.Common
             public int maxOres { get; set; } = 0;
             public int maxFuel { get; set; } = 0;
             public int fuelPerProduct { get; set; } = 0;
-            public bool requiresFuel { get; set; } = false;
-            public bool requiresFire { get; set; } = false;
+            //public bool requiresFuel { get; set; }
+            //public bool requiresFire { get; set; }
             public float conversionTime { get; set; }
             public string fuelItem { get; set; }
             public string overCookedItem { get; set; }

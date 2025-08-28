@@ -262,6 +262,243 @@ pieceModifications:
 ```
 </details>
 
+### Conversion Examples
+Makes the charcoal kiln take wood, finewood and corewood
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  charcoal_kiln:
+    action: modify
+    prefab: charcoal_kiln
+    conversions:
+    - fromPrefab: Wood
+      toPrefab: Coal
+      amount: 2
+    - fromPrefab: FineWood
+      toPrefab: Coal
+      amount: 2
+    - fromPrefab: RoundLog
+      toPrefab: Coal
+      amount: 2
+    maxOres: 50
+    conversionTime: 3
+```
+</details>
+
+Makes the blast furnance take all ores, increases its holding size, and changes the time it takes to smelt an item.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  blastfurnace:
+    prefab: blastfurnace
+    action: modify
+    conversions:
+    - fromPrefab: FlametalOreNew
+      toPrefab: FlametalNew
+      amount: 1
+    - fromPrefab: BlackMetalScrap
+      toPrefab: BlackMetal
+      amount: 1
+    - fromPrefab: CopperOre
+      toPrefab: Copper
+      amount: 1
+    - fromPrefab: IronOre
+      toPrefab: Iron
+      amount: 1
+    - fromPrefab: IronScrap
+      toPrefab: Iron
+      amount: 1
+    - fromPrefab: BronzeScrap
+      toPrefab: Bronze
+      amount: 1
+    - fromPrefab: TinOre
+      toPrefab: Tin
+      amount: 1
+    - fromPrefab: SilverOre
+      toPrefab: Silver
+      amount: 1
+    - fromPrefab: CopperScrap
+      toPrefab: Copper
+      amount: 1
+    maxOres: 20
+    maxFuel: 50
+    fuelPerProduct: 2
+    conversionTime: 15
+```
+</details>
+
+Makes the fermenter brew very quickly, and makes every mead base produce 10 potions instead of less.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  fermenter:
+    prefab: fermenter
+    action: modify
+    conversions:
+    - fromPrefab: MeadBaseHealthMinor
+      toPrefab: MeadHealthMinor
+      amount: 10
+    - fromPrefab: MeadBaseHealthMedium
+      toPrefab: MeadHealthMedium
+      amount: 10
+    - fromPrefab: MeadBaseStaminaMinor
+      toPrefab: MeadStaminaMinor
+      amount: 10
+    - fromPrefab: MeadBaseStaminaMedium
+      toPrefab: MeadStaminaMedium
+      amount: 10
+    - fromPrefab: MeadBasePoisonResist
+      toPrefab: MeadPoisonResist
+      amount: 10
+    - fromPrefab: MeadBaseFrostResist
+      toPrefab: MeadFrostResist
+      amount: 10
+    - fromPrefab: BarleyWineBase
+      toPrefab: BarleyWine
+      amount: 10
+    - fromPrefab: MeadBaseTasty
+      toPrefab: MeadTasty
+      amount: 10
+    - fromPrefab: MeadBaseHealthMajor
+      toPrefab: MeadHealthMajor
+      amount: 10
+    - fromPrefab: MeadBaseStaminaLingering
+      toPrefab: MeadStaminaLingering
+      amount: 10
+    - fromPrefab: MeadBaseEitrMinor
+      toPrefab: MeadEitrMinor
+      amount: 10
+    - fromPrefab: MeadBaseEitrLingering
+      toPrefab: MeadEitrLingering
+      amount: 10
+    - fromPrefab: MeadBaseHealthLingering
+      toPrefab: MeadHealthLingering
+      amount: 10
+    - fromPrefab: MeadBaseBzerker
+      toPrefab: MeadBzerker
+      amount: 10
+    - fromPrefab: MeadBaseStrength
+      toPrefab: MeadStrength
+      amount: 10
+    - fromPrefab: MeadBaseHasty
+      toPrefab: MeadHasty
+      amount: 10
+    - fromPrefab: MeadBaseLightFoot
+      toPrefab: MeadLightfoot
+      amount: 10
+    - fromPrefab: MeadBaseSwimmer
+      toPrefab: MeadSwimmer
+      amount: 10
+    - fromPrefab: MeadBaseTamer
+      toPrefab: MeadTamer
+      amount: 10
+    - fromPrefab: MeadBaseBugRepellent
+      toPrefab: MeadBugRepellent
+      amount: 10
+    conversionTime: 10
+```
+</details>
+
+Makes the cooking station cook faster.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  piece_cookingstation:
+    action: modify
+    prefab: piece_cookingstation
+    conversions:
+    - fromPrefab: RawMeat
+      toPrefab: CookedMeat
+      cookTime: 10
+    - fromPrefab: NeckTail
+      toPrefab: NeckTailGrilled
+      cookTime: 10
+    - fromPrefab: FishRaw
+      toPrefab: FishCooked
+      cookTime: 10
+    - fromPrefab: DeerMeat
+      toPrefab: CookedDeerMeat
+      cookTime: 10
+    - fromPrefab: WolfMeat
+      toPrefab: CookedWolfMeat
+      cookTime: 10
+    - fromPrefab: ChickenMeat
+      toPrefab: CookedChickenMeat
+      cookTime: 10
+    - fromPrefab: HareMeat
+      toPrefab: CookedHareMeat
+      cookTime: 10
+```
+</details>
+
+Makes the oven cook faster, and fuel last longer.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  piece_oven:
+    action: modify
+    prefab: piece_oven
+    conversions:
+    - fromPrefab: LoxPieUncooked
+      toPrefab: LoxPie
+      cookTime: 10
+    - fromPrefab: BreadDough
+      toPrefab: Bread
+      cookTime: 10
+    - fromPrefab: FishAndBreadUncooked
+      toPrefab: FishAndBread
+      cookTime: 10
+    - fromPrefab: MeatPlatterUncooked
+      toPrefab: MeatPlatter
+      cookTime: 10
+    - fromPrefab: HoneyGlazedChickenUncooked
+      toPrefab: HoneyGlazedChicken
+      cookTime: 10
+    - fromPrefab: MisthareSupremeUncooked
+      toPrefab: MisthareSupreme
+      cookTime: 10
+    - fromPrefab: MagicallyStuffedShroomUncooked
+      toPrefab: MagicallyStuffedShroom
+      cookTime: 10
+    - fromPrefab: RoastedCrustPieUncooked
+      toPrefab: RoastedCrustPie
+      cookTime: 10
+    - fromPrefab: PiquantPieUncooked
+      toPrefab: PiquantPie
+      cookTime: 10
+    maxFuel: 10
+    fuelItem: Wood
+    secPerFuel: 2000
+```
+</details>
+
+Makes the spinning wheel work faster and take up to 50 flax.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  piece_spinningwheel:
+    action: Modify
+    prefab: piece_spinningwheel
+    conversions:
+    - fromPrefab: Flax
+      toPrefab: LinenThread
+    maxOres: 50
+    conversionTime: 3
+```
+</details>
+
 ### FAQ
 - Q: Why is my recipe not showing up?
   A. Ensure that the recipe uses the action 'Modify' or 'Add', by default recipes dumped from the object DB will not, they will use Enable. Which if the recipe already exists and is not disabled, does nothing.

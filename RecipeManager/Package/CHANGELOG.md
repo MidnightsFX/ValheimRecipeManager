@@ -1,3 +1,15 @@
+ **0.5.0**
+---
+```
+- Adds support for conversions
+	- Modify conversions for the smelter, kiln, spinning wheel, fermenter, oven, smelter and blast furnance
+	- Add conversions (smelter accepts all ores)
+	- Modify conversions (faster, longer, more resources/less produced)
+	- Remove conversions
+	- Examples in the Readme/mod page!
+- Updated dependency requirements
+```
+
  **0.4.5**
 ---
 ```

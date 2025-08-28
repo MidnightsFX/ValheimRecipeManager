@@ -49,7 +49,7 @@ namespace RecipeManager
                     convMod.fuelItem = smelter.m_fuelItem.gameObject.name;
                 }
                 Logger.LogInfo($"Set requiresFuel {smelter.m_fuelItem != null}");
-                convMod.requiresFuel = smelter.m_fuelItem != null;
+                //convMod.requiresFuel = smelter.m_fuelItem != null;
                 Logger.LogInfo($"Set conversionTime {smelter.m_secPerProduct}");
                 convMod.conversionTime = smelter.m_secPerProduct;
                 List <ConversionDef> conversions = new List<ConversionDef>();
@@ -80,7 +80,7 @@ namespace RecipeManager
                 convMod.prefab = fermenter.gameObject.name;
                 convMod.action = ConversionAction.Modify;
                 convMod.conversionTime = fermenter.m_fermentationDuration;
-                convMod.requiresFuel = false;
+                //convMod.requiresFuel = false;
                 List<ConversionDef> conversions = new List<ConversionDef>();
                 foreach (Fermenter.ItemConversion conversion in fermenter.m_conversion) {
                     if (conversion == null) { continue; }
@@ -99,7 +99,7 @@ namespace RecipeManager
                 ConversionModification convMod = new ConversionModification();
                 convMod.prefab = cookingStation.gameObject.name;
                 convMod.action = ConversionAction.Modify;
-                convMod.requiresFuel = cookingStation.m_useFuel;
+                //convMod.requiresFuel = cookingStation.m_useFuel;
                 if (cookingStation.m_fuelItem != null) {
                     convMod.fuelItem = cookingStation.m_fuelItem.name;
                 }
@@ -108,8 +108,8 @@ namespace RecipeManager
                 }
                 convMod.secPerFuel = cookingStation.m_secPerFuel;
                 convMod.maxFuel = cookingStation.m_maxFuel;
-                convMod.requiresFuel = cookingStation.m_useFuel;
-                convMod.requiresFire = cookingStation.m_requireFire;
+                //convMod.requiresFuel = cookingStation.m_useFuel;
+                //convMod.requiresFire = cookingStation.m_requireFire;
                 List<ConversionDef> conversions = new List<ConversionDef>();
                 foreach (CookingStation.ItemConversion conversion in cookingStation.m_conversion) {
                     if (conversion == null) { continue; }

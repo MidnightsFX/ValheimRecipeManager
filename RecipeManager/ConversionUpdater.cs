@@ -241,8 +241,8 @@ namespace RecipeManager
                             }
                         }
                         tconv.updatedCookingConversions = cookConvs;
-                        tconv.requiresFuel = cov.Value.requiresFuel;
-                        tconv.requiresFire = cov.Value.requiresFire;
+                        //tconv.requiresFuel = cov.Value.requiresFuel;
+                        //tconv.requiresFire = cov.Value.requiresFire;
                         if (cov.Value.overCookedTime > 0) { tconv.overCookedTime = cov.Value.overCookedTime; }
                         break;
                     case ConversionType.Smelter:
@@ -261,7 +261,7 @@ namespace RecipeManager
                         }
                         tconv.updatedSmelterConversions = smeltConvs;
                         tconv.fuelPerProduct = cov.Value.fuelPerProduct;
-                        tconv.requiresFuel = cov.Value.requiresFuel;
+                        //tconv.requiresFuel = cov.Value.requiresFuel;
                         if (cov.Value.maxOres > 0) { tconv.maxOres = cov.Value.maxOres; }
                         if (cov.Value.maxFuel > 0) { tconv.maxFuel = cov.Value.maxFuel; }
                         if (cov.Value.fuelItem != null && cov.Value.fuelItem != "") {
