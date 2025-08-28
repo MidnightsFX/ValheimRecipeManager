@@ -181,7 +181,7 @@ namespace RecipeManager.Common
 ";
                     // Write the header here too
                     writetext.WriteLine(header);
-                    writetext.WriteLine(YamlPieceConfigDefinition());
+                    writetext.WriteLine(YamlConversionConfigDefinition());
                 }
             }
 
@@ -596,6 +596,14 @@ namespace RecipeManager.Common
         {
             var pieceCollection = new PieceModificationCollection();
             pieceCollection.PieceModifications = PieceUpdater.PiecesToModify;
+            var yaml = yamlserializer.Serialize(pieceCollection);
+            return yaml;
+        }
+
+        public static string YamlConversionConfigDefinition()
+        {
+            var pieceCollection = new ConversionModificationCollection();
+            pieceCollection.ConversionModifications = ConversionUpdater.ConversionsToModify;
             var yaml = yamlserializer.Serialize(pieceCollection);
             return yaml;
         }

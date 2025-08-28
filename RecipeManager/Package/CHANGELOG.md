@@ -1,8 +1,14 @@
+ **0.5.1**
+---
+```
+- Fixes default to level key generation for conversion pieces
+```
+
  **0.5.0**
 ---
 ```
 - Adds support for conversions
-	- Modify conversions for the smelter, kiln, spinning wheel, fermenter, oven, smelter and blast furnance
+	- Modify conversions for the smelter, kiln, spinning wheel, fermenter, oven, smelter and blast furnace
 	- Add conversions (smelter accepts all ores)
 	- Modify conversions (faster, longer, more resources/less produced)
 	- Remove conversions
