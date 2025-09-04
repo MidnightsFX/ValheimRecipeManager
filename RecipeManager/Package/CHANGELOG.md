@@ -1,3 +1,9 @@
+ **0.5.2**
+---
+```
+- Adds recovery option (deconstruct returns resources) for piece configurations
+```
+
  **0.5.1**
 ---
 ```

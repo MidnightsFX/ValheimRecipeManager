@@ -103,7 +103,7 @@ namespace RecipeManager
                         {
                             try
                             {
-                                requirements.Add(new SimpleRequirement() { amount = req.m_amount, Prefab = req.m_resItem.name });
+                                requirements.Add(new SimpleRequirement() { amount = req.m_amount, Prefab = req.m_resItem.name, recover = req.m_recover });
                             }
                             catch (Exception e)
                             {

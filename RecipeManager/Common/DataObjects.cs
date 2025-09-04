@@ -152,6 +152,7 @@ namespace RecipeManager.Common
         {
             public string Prefab { get; set; }
             public int amount { get; set; }
+            public bool recover { get; set; } = true;
         }
 
         public class TrackedRecipe

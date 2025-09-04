@@ -151,11 +151,10 @@ namespace RecipeManager
                 List<Piece.Requirement> updatedreq = new List<Piece.Requirement>();
                 foreach(var req in piece.Value.requirements)
                 {
-                    
                     try {
                         GameObject rgo = PrefabManager.Instance.GetPrefab(req.Prefab);
                         ItemDrop tid = rgo.GetComponent<ItemDrop>();
-                        updatedreq.Add(new Piece.Requirement() { m_amount = req.amount, m_resItem = tid });
+                        updatedreq.Add(new Piece.Requirement() { m_amount = req.amount, m_resItem = tid, m_recover = req.recover });
                         Logger.LogInfo($"Building requirement with res:{tid.name} amount:{req.amount}");
                     } catch {
                         Logger.LogWarning($"Could not find an itemDrop for resource with name: {req.Prefab}");
