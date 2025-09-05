@@ -1,6 +1,13 @@
+ **0.5.3**
+---
+```
+- Fixed possible path NPE
+```
+
  **0.5.2**
 ---
 ```
+WARNING: This Thunderstore version was incorrect, please use 5.3 or 5.1
 - Adds recovery option (deconstruct returns resources) for piece configurations
 ```
 

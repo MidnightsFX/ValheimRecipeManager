@@ -320,16 +320,8 @@ namespace RecipeManager.Common
             RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
         }
 
-        private static string DetermineFileName(string fullfilepath)
-        {
-            string filename = "";
-            string[] split_filepath = fullfilepath.Split('\\');
-            if (split_filepath.Length < 2) {
-                split_filepath = fullfilepath.Split('/');
-            }
-            // zero based and the last item
-            Logger.LogInfo($"File name check: {string.Join(",", split_filepath)}");
-            filename = split_filepath[split_filepath.Length - 2];
+        private static string DetermineFileName(string fullfilepath) {
+            string filename = Path.GetFileName(fullfilepath);
             return filename;
         }
 
