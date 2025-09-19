@@ -7,12 +7,12 @@ namespace RecipeManager
 {
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
-    [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Patch)]
+    [NetworkCompatibility(CompatibilityLevel.VersionCheckOnly, VersionStrictness.Patch)]
     internal class RecipeManager : BaseUnityPlugin
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.5.3";
+        public const string PluginVersion = "0.5.4";
 
         public Common.ValConfig cfg;
         public static ManualLogSource Log;

@@ -328,17 +328,20 @@ namespace RecipeManager
                     nRecipe.name = "Recipe_" + recipeMod.Key;
 
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Resolving resource requirement references."); }
+                    bool valid = true;
                     foreach (Piece.Requirement res in nRecipe.m_resources)
                     {
                         var res_prefab = ObjectDB.instance.GetItemPrefab(res.m_resItem.name.Replace("JVLmock_", ""));
                         if (res_prefab != null) {
                             res.m_resItem = res_prefab.GetComponent<ItemDrop>(); 
                         } else {
-                            Logger.LogWarning($"Could not resolve itemdrop reference for: {res.m_resItem.name}. This requirement will be deleted.");
+                            valid = false;
+                            Logger.LogError($"Could not resolve itemdrop reference for: {res.m_resItem.name.Replace("JVLmock_", "")}. This Recipe modification will be skipped.");
                         }
                     }
+                    if (valid == false) { continue;  }
                     // Reject all entries that do not have resolved references
-                    nRecipe.m_resources.Where(val => val.m_resItem.GetType() == typeof(ItemDrop)).ToArray();
+                    // nRecipe.m_resources.Where(val => val.m_resItem.GetType() == typeof(ItemDrop)).ToArray();
 
                     tRecipeDetails.updatedRecipe = nRecipe;
                     tRecipeDetails.updatedCustomRecipe = updatedCustomRecipe;

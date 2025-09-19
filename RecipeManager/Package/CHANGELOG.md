@@ -1,3 +1,13 @@
+ **0.5.4**
+---
+```
+- Improves recipe validation for invalid prefabs
+- Reducing client/server requirements to version check only if both contain the mod.
+  This allows clients or servers to support people who can't run mods, or choose not to playe with mods.
+  While still allowing users to run the mod if they desire.
+  Warning: Recipes are still server synced. Which means if a server synchronization occurs, you will use the servers configs.
+```
+
  **0.5.3**
 ---
 ```
