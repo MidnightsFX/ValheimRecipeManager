@@ -2,6 +2,8 @@
 using BepInEx.Logging;
 using Jotunn.Managers;
 using Jotunn.Utils;
+using RecipeManager.Common;
+using System.Collections;
 
 namespace RecipeManager
 {
@@ -12,7 +14,7 @@ namespace RecipeManager
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.5.4";
+        public const string PluginVersion = "0.5.5";
 
         public Common.ValConfig cfg;
         public static ManualLogSource Log;
@@ -25,10 +27,16 @@ namespace RecipeManager
             ItemManager.OnItemsRegistered += RecipeUpdater.InitialRecipesAndSynchronize;
             ItemManager.OnItemsRegistered += PieceUpdater.InitialSychronization;
             ItemManager.OnItemsRegistered += ConversionUpdater.InitialSychronization;
-            MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
-            MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
-            MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;
-            // Jotunn.Logger.LogInfo("Recipe Updater Loaded.");
+
+            if (ValConfig.EnableDelayedSynchronization.Value == false) {
+                MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
+                MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
+                MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;
+            }
+
+            if (ValConfig.EnableDelayedSynchronization.Value == true) {
+                MinimapManager.OnVanillaMapDataLoaded += () => { ZNetScene.instance.StartCoroutine(DelayedSync()); }; 
+            }
 
             CommandManager.Instance.AddConsoleCommand(new RecipeReloadCommand());
             CommandManager.Instance.AddConsoleCommand(new RecipePrintCommand());
@@ -39,6 +47,14 @@ namespace RecipeManager
 
             CommandManager.Instance.AddConsoleCommand(new ConversionPrintCommand());
             CommandManager.Instance.AddConsoleCommand(new ConversionReloadCommand());
+        }
+
+        private static IEnumerator DelayedSync()
+        {
+            yield return new UnityEngine.WaitForSeconds(ValConfig.DelayedSynchronizationSecondsTimer.Value);
+            RecipeUpdater.SecondaryRecipeSync();
+            PieceUpdater.PieceUpdateRunner();
+            ConversionUpdater.ConversionUpdateRunner();
         }
 
     }

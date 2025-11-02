@@ -1,7 +1,9 @@
 ﻿using Jotunn.Managers;
 using RecipeManager.Common;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
 using Logger = RecipeManager.Common.Logger;
@@ -50,29 +52,85 @@ namespace RecipeManager
             }
         }
 
-        public static void EnablePiece(TrackedPiece piece)
-        {
+        public static void EnablePiece(TrackedPiece piece) {
             Logger.LogDebug($"Enabling {piece.prefab}");
-            // Might need to do this for all pieces with the full name
-            GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
-            go.GetComponent<Piece>().m_enabled = true;
+            List<Piece> modificationTargets = Resources.FindObjectsOfTypeAll<Piece>().Where(x => x.name.StartsWith(piece.prefab)).ToList();
+            ZNetScene.instance.StartCoroutine(EnablePieces(modificationTargets));
+        }
+
+        private static IEnumerator EnablePieces(List<Piece> modificationTargets)
+        {
+            int changeCount = 0;
+            foreach (Piece pcomp in modificationTargets)
+            {
+                changeCount++;
+                if (changeCount >= ValConfig.MaxModificaitionsPerFrame.Value)
+                {
+                    changeCount = 0;
+                    yield return new WaitForSeconds(0.2f);
+                }
+                pcomp.m_enabled = true;
+            }
+
+            yield break;
         }
 
         private static void RevertPiece(TrackedPiece tpiece)
         {
-            GameObject go = PrefabManager.Instance.GetPrefab(tpiece.prefab);
-            Piece pcomp = go.GetComponent<Piece>();
-            pcomp = tpiece.originalPiece;
+            Logger.LogDebug($"Reverting {tpiece.prefab}");
+            List<Piece> modificationTargets = Resources.FindObjectsOfTypeAll<Piece>().Where(x => x.name.StartsWith(tpiece.prefab)).ToList();
+            ZNetScene.instance.StartCoroutine(RevertPieces(tpiece, modificationTargets));
         }
 
-        private static void ModifyPiece(TrackedPiece piece)
+        private static IEnumerator RevertPieces(TrackedPiece piece, List<Piece> modificationTargets)
         {
+            int changeCount = 0;
+            foreach (Piece pcomp in modificationTargets) {
+                changeCount++;
+                if (changeCount >= ValConfig.MaxModificaitionsPerFrame.Value)
+                {
+                    changeCount = 0;
+                    yield return new WaitForSeconds(0.2f);
+                }
+                pcomp.m_resources = piece.originalPiece.m_resources;
+
+                pcomp.m_craftingStation = piece.originalPiece.m_craftingStation;
+                pcomp.m_allowedInDungeons = piece.originalPiece.m_allowedInDungeons;
+                pcomp.m_canBeRemoved = piece.originalPiece.m_canBeRemoved;
+                pcomp.m_category = piece.originalPiece.m_category;
+                pcomp.m_comfort = piece.originalPiece.m_comfort;
+
+                pcomp.m_comfortGroup = piece.originalPiece.m_comfortGroup;
+                pcomp.m_connectRadius = piece.originalPiece.m_connectRadius;
+                pcomp.m_description = piece.originalPiece.m_description;
+                pcomp.m_name = piece.originalPiece.m_name;
+                pcomp.m_onlyInBiome = piece.originalPiece.m_onlyInBiome;
+                pcomp.m_isUpgrade = piece.originalPiece.m_isUpgrade;
+                pcomp.m_cultivatedGroundOnly = piece.originalPiece.m_cultivatedGroundOnly;
+                pcomp.m_mustBeAboveConnected = piece.originalPiece.m_mustBeAboveConnected;
+                pcomp.m_spaceRequirement = piece.originalPiece.m_spaceRequirement;
+                pcomp.m_groundPiece = piece.originalPiece.m_groundPiece;
+            }
+
+            yield break;
+        }
+
+        private static void ModifyPiece(TrackedPiece piece) {
             Logger.LogDebug($"Modifying {piece.prefab}");
-            // Might need to do this for all pieces with the full name, including clones
-            GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
-            Piece pcomp = go.GetComponent<Piece>();
-            if (pcomp != null) 
-            {
+
+            List<Piece> modificationTargets = Resources.FindObjectsOfTypeAll<Piece>().Where(x => x.name.StartsWith(piece.prefab)).ToList();
+            ZNetScene.instance.StartCoroutine(ModifyPieces(piece, modificationTargets));
+        }
+
+        private static IEnumerator ModifyPieces(TrackedPiece piece, List<Piece> modificationTargets)
+        {
+            int changeCount = 0;
+            foreach(Piece pcomp in modificationTargets) {
+                changeCount++;
+                if (changeCount >= ValConfig.MaxModificaitionsPerFrame.Value) {
+                    changeCount = 0;
+                    yield return new WaitForSeconds(0.2f);
+                }
                 if (piece.updatedRequirements != null)
                 {
                     pcomp.m_resources = piece.updatedRequirements;
@@ -99,7 +157,8 @@ namespace RecipeManager
                 }
                 pcomp.m_enabled = piece.EnablePiece;
 
-                if (piece.PieceName != null) {
+                if (piece.PieceName != null)
+                {
                     pcomp.m_name = piece.PieceName;
                 }
                 pcomp.m_onlyInBiome = piece.OnlyInBiome;
@@ -113,14 +172,31 @@ namespace RecipeManager
                 pcomp.m_groundPiece = piece.GroundPlacement;
                 // pcomp
             }
+            yield break;
         }
 
         private static void DisablePiece(TrackedPiece piece)
         {
-            Logger.LogDebug($"Modifying {piece.prefab}");
-            // Might need to do this for all pieces with the full name
-            GameObject go = PrefabManager.Instance.GetPrefab(piece.prefab);
-            go.GetComponent<Piece>().m_enabled = false;
+            Logger.LogDebug($"Disabling {piece.prefab}");
+            List<Piece> modificationTargets = Resources.FindObjectsOfTypeAll<Piece>().Where(x => x.name.StartsWith(piece.prefab)).ToList();
+            ZNetScene.instance.StartCoroutine(DisablePieces(modificationTargets));
+        }
+
+        private static IEnumerator DisablePieces(List<Piece> modificationTargets)
+        {
+            int changeCount = 0;
+            foreach (Piece pcomp in modificationTargets)
+            {
+                changeCount++;
+                if (changeCount >= ValConfig.MaxModificaitionsPerFrame.Value)
+                {
+                    changeCount = 0;
+                    yield return new WaitForSeconds(0.2f);
+                }
+                pcomp.m_enabled = false;
+            }
+
+            yield break;
         }
 
         public static void BuildPieceTracker()

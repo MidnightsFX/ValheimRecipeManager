@@ -1,3 +1,10 @@
+ **0.5.5**
+---
+```
+- Adds the option to control how long the secondary sync delays, disabled by default.
+  This delay starts once the minimap is available which is the last loaded element before the game is playable (functionally this starts once the game is playable)
+```
+
  **0.5.4**
 ---
 ```

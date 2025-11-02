@@ -16,6 +16,9 @@ namespace RecipeManager.Common
     {
         public static ConfigFile cfg;
         public static ConfigEntry<bool> EnableDebugMode;
+        public static ConfigEntry<bool> EnableDelayedSynchronization;
+        public static ConfigEntry<int> DelayedSynchronizationSecondsTimer;
+        public static ConfigEntry<int> MaxModificaitionsPerFrame;
 
         public static String recipeConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Recipes.yaml");
         public static List<string> RecipeConfigFilePaths = new List<string>();
@@ -48,6 +51,9 @@ namespace RecipeManager.Common
                 new ConfigurationManagerAttributes { IsAdvanced = true }));
             EnableDebugMode.SettingChanged += Logger.enableDebugLogging;
             Logger.CheckEnableDebugLogging();
+            EnableDelayedSynchronization = BindServerConfig("Server config", "EnableDelayedSynchronization", false, "Enables a delayed sychronaization of recipes, pieces, and conversions. This can help ensure modifications are made to late-changing pieces/items.");
+            DelayedSynchronizationSecondsTimer = BindServerConfig("Server config", "DelayedSynchronizationSecondsTimer", 10, "The number of seconds to wait before performing the delayed synchronization. This only applies if EnableDelayedSynchronization is true.");
+            MaxModificaitionsPerFrame = BindServerConfig("Server config", "MaxModificaitionsPerFrame", 10, "The maximum number of changes per type of modification to apply in one frame. Smaller numbers reduce lag, but take longer for changes to apply.", false, 1, 50);
         }
 
         private static void SetupSecondaryConfigFile()
@@ -647,11 +653,11 @@ namespace RecipeManager.Common
         /// <param name="description"></param>
         /// <param name="advanced"></param>
         /// <returns></returns>
-        public ConfigEntry<short> BindServerConfig(string catagory, string key, short value, string description, bool advanced = false, short valmin = 0, short valmax = 150)
+        public ConfigEntry<int> BindServerConfig(string catagory, string key, int value, string description, bool advanced = false, int valmin = 0, int valmax = 150)
         {
             return cfg.Bind(catagory, key, value,
                 new ConfigDescription(description,
-                new AcceptableValueRange<short>(valmin, valmax),
+                new AcceptableValueRange<int>(valmin, valmax),
                 new ConfigurationManagerAttributes { IsAdminOnly = true, IsAdvanced = advanced })
                 );
         }
