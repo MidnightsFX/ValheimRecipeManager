@@ -25,7 +25,9 @@ namespace RecipeManager
             ItemManager.OnItemsRegistered += RecipeUpdater.InitialRecipesAndSynchronize;
             ItemManager.OnItemsRegistered += PieceUpdater.InitialSychronization;
             ItemManager.OnItemsRegistered += ConversionUpdater.InitialSychronization;
+            MinimapManager.OnVanillaMapDataLoaded += Common.ValConfig.ReloadPieceFiles;
             MinimapManager.OnVanillaMapDataLoaded += RecipeUpdater.SecondaryRecipeSync;
+            MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.BuildPieceTracker;
             MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
             MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;
             // Jotunn.Logger.LogInfo("Recipe Updater Loaded.");
