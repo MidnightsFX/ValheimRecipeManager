@@ -1,3 +1,9 @@
+ **0.5.5**
+---
+```
+- Adds late running synchronization for Pieces, fixes modification consistency issues with late updating pieces (thanks JacoboNeuro!)
+```
+
  **0.5.4**
 ---
 ```
