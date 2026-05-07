@@ -2,6 +2,9 @@
 using BepInEx.Logging;
 using Jotunn.Managers;
 using Jotunn.Utils;
+using RecipeManager.Common;
+using System.Collections;
+using UnityEngine;
 
 namespace RecipeManager
 {
@@ -31,6 +34,7 @@ namespace RecipeManager
             MinimapManager.OnVanillaMapDataLoaded += PieceUpdater.PieceUpdateRunner;
             MinimapManager.OnVanillaMapDataLoaded += ConversionUpdater.ConversionUpdateRunner;
             // Jotunn.Logger.LogInfo("Recipe Updater Loaded.");
+            MinimapManager.OnVanillaMapDataLoaded += SecondarySync;
 
             CommandManager.Instance.AddConsoleCommand(new RecipeReloadCommand());
             CommandManager.Instance.AddConsoleCommand(new RecipePrintCommand());
@@ -41,6 +45,20 @@ namespace RecipeManager
 
             CommandManager.Instance.AddConsoleCommand(new ConversionPrintCommand());
             CommandManager.Instance.AddConsoleCommand(new ConversionReloadCommand());
+        }
+
+        internal static void SecondarySync() {
+            if (ZNet.instance != null && ZNet.instance.isActiveAndEnabled) {
+                ZNet.instance.StartCoroutine(RunDelayedSync());
+            }
+        }
+
+        internal static IEnumerator RunDelayedSync() {
+            yield return new WaitForSeconds(ValConfig.ValidationRecheckDelay.Value);
+            if (ValConfig.EnableDelayedValidationRun.Value == false) { yield break; }
+            RecipeUpdater.SecondaryRecipeSync();
+            PieceUpdater.PieceUpdateRunner();
+            ConversionUpdater.ConversionUpdateRunner();
         }
 
     }

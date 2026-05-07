@@ -16,6 +16,8 @@ namespace RecipeManager.Common
     {
         public static ConfigFile cfg;
         public static ConfigEntry<bool> EnableDebugMode;
+        public static ConfigEntry<bool> EnableDelayedValidationRun;
+        public static ConfigEntry<float> ValidationRecheckDelay;
 
         public static String recipeConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Recipes.yaml");
         public static List<string> RecipeConfigFilePaths = new List<string>();
@@ -48,6 +50,9 @@ namespace RecipeManager.Common
                 new ConfigurationManagerAttributes { IsAdvanced = true }));
             EnableDebugMode.SettingChanged += Logger.enableDebugLogging;
             Logger.CheckEnableDebugLogging();
+
+            EnableDelayedValidationRun = BindServerConfig("Sync", "EnableDelayedValidationRun", false, "When enabled, all modifications are verified and re-ran if needed after a set time. This occurs once for each player and is limited to that player. This can be used to fix issues with extremely late running mod additions.", true);
+            ValidationRecheckDelay = BindServerConfig("Sync", "ValidationRecheckDelay", 60f, "The duration, in seconds that the secondary validation run will wait to run", true);
         }
 
         private static void SetupSecondaryConfigFile()

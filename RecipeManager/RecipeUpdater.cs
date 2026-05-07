@@ -10,20 +10,17 @@ using System.Linq;
 using Jotunn.Configs;
 using UnityEngine;
 
-namespace RecipeManager
-{
-    internal class RecipeUpdater
-    {
+namespace RecipeManager {
+    internal class RecipeUpdater {
         public static Dictionary<String,RecipeModification> RecipesToModify = new Dictionary<String, RecipeModification>();
         public static List<TrackedRecipe> TrackedRecipes = new List<TrackedRecipe>();
 
-        public static void SecondaryRecipeSync()
-        {
+        public static void SecondaryRecipeSync() {
             // Guard against doing any recipe modifications if there are no recipes to modify
             if (TrackedRecipes.Count == 0) return;
 
-            foreach (TrackedRecipe tracked_recipe in TrackedRecipes)
-            {
+            Logger.LogInfo($"Validating {TrackedRecipes.Count} Recipe modifications");
+            foreach (TrackedRecipe tracked_recipe in TrackedRecipes) {
                 if(CheckIfRecipeWasModified(tracked_recipe) == true) { continue; }
 
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Tracked {tracked_recipe.prefab} recipe still has its original recipe in the db. Modifying."); }
@@ -48,8 +45,8 @@ namespace RecipeManager
         public static void RecipeUpdateRunner()
         {
             // Perform the first recipe modification
-            foreach (TrackedRecipe tracked_recipe  in TrackedRecipes)
-            {
+            Logger.LogDebug($"Applying {TrackedRecipes.Count} Recipe modifications");
+            foreach (TrackedRecipe tracked_recipe  in TrackedRecipes) {
                 ApplyRecipeModifcations(tracked_recipe);
             }
         }
