@@ -201,5 +201,157 @@ namespace RecipeManager.Common
             public short craftCost { get; set; }
             public short upgradeCost { get; set; }
         }
+
+        public enum ItemAction
+        {
+            Add,
+            Remove,
+            Modify
+        }
+
+        [DataContract]
+        public class ItemAdditionCollection
+        {
+            public Dictionary<String, ItemAddition> ItemAdditions { get; set; } = new Dictionary<String, ItemAddition>();
+        }
+
+        [DataContract]
+        public class ItemAddition
+        {
+            public ItemAction action { get; set; }
+            public string prefab { get; set; }
+            public string clonedFrom { get; set; }
+            public string name { get; set; }
+            public string description { get; set; }
+            // These are nullable so that an unset value ("keep what the cloned prefab had") stays
+            // distinguishable from an explicit 0. A sentinel like -1 would not survive the server sync,
+            // because the serializer omits any value equal to the type default.
+            public float? weight { get; set; }
+            public int? maxStackSize { get; set; }
+            public int? value { get; set; }
+            public bool? teleportable { get; set; }
+            public FoodStats food { get; set; }
+            public WeaponStats weapon { get; set; }
+            public ArmorStats armor { get; set; }
+            // A null list keeps whatever resistances the item already has, an empty list clears them all.
+            public List<DamageResistance> resistances { get; set; }
+            public ItemStatusEffects statusEffects { get; set; }
+            public SetBonus setBonus { get; set; }
+            public ItemRecipe recipe { get; set; }
+        }
+
+        [DataContract]
+        public class FoodStats
+        {
+            public float? health { get; set; }
+            public float? stamina { get; set; }
+            public float? eitr { get; set; }
+            public float? duration { get; set; }
+            public float? regen { get; set; }
+            public float? eatAnimTime { get; set; }
+            public bool? isDrink { get; set; }
+            public string consumeStatusEffect { get; set; }
+        }
+
+        /// <summary>
+        /// One damage value per damage type. Every field is optional, an unset one leaves that damage
+        /// type exactly as it is, so a modification can raise a sword's slash damage without having to
+        /// restate the rest of its damage profile.
+        /// </summary>
+        [DataContract]
+        public class DamageValues
+        {
+            /// <summary>The untyped "damage" line in the tooltip, not the total of the other types.</summary>
+            public float? damage { get; set; }
+            public float? blunt { get; set; }
+            public float? slash { get; set; }
+            public float? pierce { get; set; }
+            public float? chop { get; set; }
+            public float? pickaxe { get; set; }
+            public float? fire { get; set; }
+            public float? frost { get; set; }
+            public float? lightning { get; set; }
+            public float? poison { get; set; }
+            public float? spirit { get; set; }
+        }
+
+        [DataContract]
+        public class WeaponStats
+        {
+            public DamageValues damage { get; set; }
+            /// <summary>Damage added for each upgrade level above the first.</summary>
+            public DamageValues damagePerLevel { get; set; }
+            public float? attackForce { get; set; }
+            public float? backstabBonus { get; set; }
+            /// <summary>Which materials the tool can harvest, 0 is wood and stone, 2 is black metal.</summary>
+            public int? toolTier { get; set; }
+        }
+
+        [DataContract]
+        public class ArmorStats
+        {
+            public float? armor { get; set; }
+            public float? armorPerLevel { get; set; }
+            public float? blockPower { get; set; }
+            public float? blockPowerPerLevel { get; set; }
+            public float? deflectionForce { get; set; }
+            public float? deflectionForcePerLevel { get; set; }
+            /// <summary>Movement speed change while equipped, as a fraction. -0.05 is 5% slower.</summary>
+            public float? movementModifier { get; set; }
+            public float? eitrRegenModifier { get; set; }
+        }
+
+        [DataContract]
+        public class DamageResistance
+        {
+            public HitData.DamageType type { get; set; }
+            public HitData.DamageModifier modifier { get; set; }
+        }
+
+        [DataContract]
+        public class ItemStatusEffects
+        {
+            /// <summary>Applied for as long as the item is equipped.</summary>
+            public string equipped { get; set; }
+            /// <summary>Applied to whatever this weapon hits.</summary>
+            public string onHit { get; set; }
+            /// <summary>Chance for the onHit effect to land, 0 to 1.</summary>
+            public float? onHitChance { get; set; }
+        }
+
+        /// <summary>
+        /// Armor set bonus. The game only grants it when the set has a status effect, a size above one,
+        /// and enough equipped pieces sharing the same set name.
+        /// </summary>
+        [DataContract]
+        public class SetBonus
+        {
+            /// <summary>Grouping key, every piece of the same set has to use the same value.</summary>
+            public string name { get; set; }
+            /// <summary>How many pieces of the set have to be worn.</summary>
+            public int? size { get; set; }
+            public string statusEffect { get; set; }
+        }
+
+        [DataContract]
+        public class ItemRecipe
+        {
+            public string craftedAt { get; set; }
+            public string repairAt { get; set; }
+            public short minStationLevel { get; set; } = 1;
+            public short craftAmount { get; set; } = 1;
+            public bool anyOneResource { get; set; } = false;
+            public List<Ingrediant> ingredients { get; set; } = new List<Ingrediant>();
+        }
+
+        public class TrackedItem
+        {
+            public ItemAction action { get; set; }
+            public string prefab { get; set; }
+            public string clonedFrom { get; set; }
+            public GameObject itemPrefab { get; set; }
+            public CustomItem customItem { get; set; }
+            public ItemAddition definition { get; set; }
+        }
     }
 }

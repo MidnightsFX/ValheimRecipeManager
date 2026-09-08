@@ -1,3 +1,23 @@
+ **0.6.0**
+---
+```
+- Adds item additions, a new Items.yaml config which creates brand new items by cloning an existing one.
+  Supports a custom name, description, weight, stack size, value, teleportability, food stats and recipe.
+  Adding or removing an item requires a restart, editing one does not.
+- Adds item modifications, 'action: Modify' in Items.yaml, which changes items that already exist
+  including vanilla weapons and armor. Original values are restored when a modification is removed.
+- Adds weapon, armor, resistance, status effect and set bonus stats, usable on both added and modified
+  items. Covers per damage type damage and damage per level, attack force, backstab bonus, tool tier,
+  armor, block power, deflection force, movement and eitr modifiers, damage resistances, equipped and
+  on hit status effects, and the set name, size and bonus effect.
+- Adds custom icons and textures for added items, loaded from BepInEx\config\RecipeManager\Textures\<prefab>\
+- Adds RM_Textures_Dump <prefabName> which dumps a prefab's icons and material textures to disk as PNGs
+- Adds RM_Items_Reload and RM_Items_PrintAll
+- Fixes conversion configs being read from the piece config files instead of the conversion config files
+- Fixes piece and conversion updates being sent to clients over the wrong RPC
+- Fixes conversion configs never being sent to clients when they join
+```
+
  **0.5.5**
 ---
 ```

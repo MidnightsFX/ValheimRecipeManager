@@ -15,6 +15,9 @@ Pieces are almost anything that is placed. Everything built with the hammer, pla
 - Disable Pieces
 - Enable Pieces
 - Modify Pieces
+- Add new items by cloning an existing item, with their own name, stats, icon and textures
+- Modify the stats of items that already exist, including vanilla weapons and armor
+- Dump any prefab's icons and textures to disk so you can repaint them
 
 Recipes can be manipulated and added through yaml. All of the existing recipes can also be dumped to a file, in the same format to help you find and understand existing recipes.
 
@@ -76,6 +79,16 @@ This mod adds two new commands which can be used to speed up recipe modification
 
 `RM_Pieces_PrintAll` - This prints all pieces to a debug file (including modifications), this file is ignored.
 
+`RM_Conversion_Reload` - This reloads all conversion modifications that are found.
+
+`RM_Conversion_PrintAll` - This prints all conversions to a debug file, this file is ignored.
+
+`RM_Items_Reload` - This reloads item additions and modifications. Stats, names, icons and textures are re-applied straight away; adding or removing an item needs a restart.
+
+`RM_Items_PrintAll` - This prints the items in the object DB, with the stats they currently have, to a reference file, this file is ignored. `RM_Items_PrintAll <text>` only prints the items whose prefab name contains `<text>`.
+
+`RM_Textures_Dump <prefabName>` - This dumps a prefab's icons and material textures to `\BepInEx\config\RecipeManager\Textures\<prefabName>\` as PNGs.
+
 Commands require [enabling the in-game console](https://valheim.fandom.com/wiki/Developer_console).
 
 If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add `--console`
@@ -95,6 +108,12 @@ For example this means that:
 
 - `CultivatorPieces.yaml` is valid
 - `Cultivator.yaml` is not valid and will not be loaded
+
+All files which contain `Items.yaml` in `\BepInEx\config\RecipeManager\` will be considered item additions and loaded (except `ObjectDBItems.yaml`).
+For example this means that:
+
+- `Food_Items.yaml` is valid
+- `Food.yaml` is not valid and will not be loaded
 
 ### Recipe Examples
 
@@ -499,15 +518,248 @@ conversionModifications:
 ```
 </details>
 
+### Items
+
+`\BepInEx\config\RecipeManager\Items.yaml` does two things:
+
+- `action: Add` creates a brand new item by cloning an existing one. The clone keeps the model and
+  every stat of the item it was copied from, and anything you set in the config is applied on top.
+- `action: Modify` changes an item that already exists, vanilla weapons and armor included. Only the
+  fields you set are changed, and taking a field back out of the yaml puts the original value back.
+
+> Adding or removing an item needs a game restart (or a trip back to the main menu). This is a hard
+> requirement of how Valheim identifies items on the network, not something the mod can work around.
+> Everything else, including every modification of an existing item, works live with `RM_Items_Reload`.
+
+#### Adding a new item
+
+Add a "Honey bread" food, made from bread and honey at the cauldron
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+itemAdditions:
+  HoneyBread:                              # <- The name of this addition, it is for your information but SHOULD BE UNIQUE
+    action: Add                            # <- REQUIRED This is the action applied, can be [Add, Remove]
+    prefab: HoneyBread                     # <- REQUIRED The prefab name of the NEW item, must be globally unique
+    clonedFrom: Bread                      # <- REQUIRED The existing prefab to copy
+    name: Honey Bread                      # <- The display name. Start it with '$' to use your own localization token
+    description: Sweet, sticky and filling. # <- The tooltip description
+    weight: 0.5                            # <- Leave unset to keep the cloned item's weight
+    maxStackSize: 20                       # <- Leave unset to keep the cloned item's stack size
+    value: 12                              # <- The trader value of this item
+    teleportable: true                     # <- Whether this item can go through a portal
+    food:                                  # <- Only set this for food and drinks, leave it out otherwise
+      health: 50                           # <- The max health this food grants
+      stamina: 60                          # <- The max stamina this food grants
+      eitr: 0                              # <- The max eitr this food grants
+      duration: 1800                       # <- How long the food lasts, in seconds
+      regen: 2                             # <- Health regenerated per tick while this food is active
+      eatAnimTime: 1                       # <- How long the eating animation takes
+      isDrink: false                       # <- Whether this is drunk rather than eaten
+      consumeStatusEffect: ''              # <- The name of an EXISTING status effect to apply when consumed
+    recipe:                                # <- Optional, leave it out for an item that is not crafted
+      craftedAt: piece_cauldron            # <- The crafting station, leave it empty for handcrafting
+      repairAt: ''                         # <- Defaults to craftedAt
+      minStationLevel: 1                   # <- The required crafting station level
+      craftAmount: 1                       # <- How many of the item one craft produces
+      anyOneResource: false                # <- Only require one of the ingredients below
+      ingredients:
+      - prefab: Bread                      # <- Prefab that this ingredient requires
+        craftCost: 1                       # <- The amount of this ingredient it takes to craft
+        upgradeCost: 0                     # <- The amount of this ingredient it takes to upgrade
+      - prefab: Honey
+        craftCost: 2
+        upgradeCost: 0
+```
+</details>
+
+Run `RM_Items_PrintAll` to dump the items in the game with their real stat values. That file is never
+loaded, it is there so you can copy an entry and see what the numbers should look like. It is a big
+file, so `RM_Items_PrintAll sword` will only dump the items whose prefab name contains "sword".
+
+New items are visible to the rest of the mod by their prefab name, so you can also refer to them from
+`Recipes.yaml` or `Conversions.yaml`. For example, to cook your new item in the oven instead of crafting
+it at the cauldron, leave out the `recipe:` block and add a conversion from an uncooked item to it.
+
+#### Modifying an existing item
+
+Set `action: Modify` and point `prefab` at the item you want to change. There is no `clonedFrom`,
+nothing new is created, and the change reaches every copy of that item that already exists, including
+the ones sitting in chests and inventories.
+
+Anything you leave out keeps its current value, so a modification only has to list what actually
+differs. The reverse is true too: deleting a line and running `RM_Items_Reload` restores that item's
+original value rather than leaving the last number you set.
+
+Make the iron sword hit harder and set things on fire
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+itemAdditions:
+  BurningIronSword:
+    action: Modify
+    prefab: SwordIron                        # <- The existing item to change
+    weapon:
+      damage:                                # <- Only the damage types listed here are touched
+        slash: 60
+        fire: 20
+      damagePerLevel:
+        slash: 5
+      backstabBonus: 4
+    statusEffects:
+      onHit: Burning                         # <- Applied to whatever the sword hits
+      onHitChance: 0.5
+```
+</details>
+
+Give the troll armor set fire resistance and a real set bonus
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+itemAdditions:
+  FireproofTrollChest:
+    action: Modify
+    prefab: ArmorTrollLeatherChest
+    armor:
+      armor: 20
+      armorPerLevel: 4
+      movementModifier: 0.05                 # <- 5% faster while worn
+    resistances:                             # <- Replaces the item's whole resistance list
+    - type: Fire
+      modifier: VeryResistant
+    - type: Frost
+      modifier: Resistant
+    setBonus:
+      name: TrollLeather                     # <- Every piece of the set has to use the same name
+      size: 3
+      statusEffect: SetEffect_TrollArmor
+```
+</details>
+
+#### Weapon, armor and set stats
+
+These blocks work exactly the same on an item you added and on one you are modifying, so a cloned
+sword can be given its own damage profile the same way a vanilla one can.
+
+`weapon:` - damage and tool stats.
+
+| Field | Meaning |
+| --- | --- |
+| `damage` | Base damage. Takes any of `damage`, `blunt`, `slash`, `pierce`, `chop`, `pickaxe`, `fire`, `frost`, `lightning`, `poison`, `spirit`. Types you leave out are not touched. |
+| `damagePerLevel` | Damage added by each upgrade level, same fields as `damage`. |
+| `attackForce` | Knockback. |
+| `backstabBonus` | Sneak attack damage multiplier. |
+| `toolTier` | What a tool is able to harvest. 0 is wood and stone, 2 is black metal. |
+
+`armor:` - armor, shield and equip stats.
+
+| Field | Meaning |
+| --- | --- |
+| `armor` / `armorPerLevel` | Armor value, and how much each upgrade level adds. |
+| `blockPower` / `blockPowerPerLevel` | How much damage a block absorbs, shields and weapons that block. |
+| `deflectionForce` / `deflectionForcePerLevel` | How far a blocked attacker is pushed back. |
+| `movementModifier` | Speed change while equipped, as a fraction. `-0.05` is 5% slower. |
+| `eitrRegenModifier` | Eitr regeneration change while equipped. |
+
+`resistances:` - a list of `type` and `modifier` pairs. This **replaces** the item's whole resistance
+list, so include every resistance you want it to end up with, and use `resistances: []` to remove them
+all.
+
+- `type` is one of `Blunt`, `Slash`, `Pierce`, `Chop`, `Pickaxe`, `Fire`, `Frost`, `Lightning`,
+  `Poison`, `Spirit`.
+- `modifier` is one of `Normal`, `SlightlyResistant`, `Resistant`, `VeryResistant`, `SlightlyWeak`,
+  `Weak`, `VeryWeak`, `Immune`, `Ignore`.
+
+`statusEffects:` - effects the item provides.
+
+| Field | Meaning |
+| --- | --- |
+| `equipped` | Applied for as long as the item is equipped. |
+| `onHit` | Applied to whatever the weapon hits. |
+| `onHitChance` | Chance for `onHit` to land, from 0 to 1. |
+
+`setBonus:` - the armor set the item belongs to.
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Grouping key. Every piece of the same set has to use the same value. |
+| `size` | How many pieces have to be worn. The game ignores set bonuses with a size of 1 or less. |
+| `statusEffect` | The effect that wearing the full set grants. |
+
+Status effects are referenced by name and have to already exist, this mod cannot create new ones.
+`SetEffect_TrollArmor`, `Burning` and `Frost` are examples of names that work. To empty a status effect
+slot rather than set one, use the value `None`.
+
+#### Custom icons and textures
+
+Icons and textures are read from `\BepInEx\config\RecipeManager\Textures\<prefab>\`, where `<prefab>` is
+the `prefab:` value of your new item. Any file that is present replaces that texture, and anything
+missing keeps whatever the cloned item had.
+
+The workflow is:
+
+1. Run `RM_Textures_Dump Bread` in the console. This writes Bread's icon and material textures to
+   `\BepInEx\config\RecipeManager\Textures\Bread\`, along with a `_dump_info.txt` describing what each
+   file is.
+2. Copy that whole folder and rename the copy to your new item's prefab name, for example
+   `Textures\HoneyBread\`.
+3. Repaint the PNGs you care about and delete the ones you did not change.
+4. Restart the game, or run `RM_Items_Reload`.
+
+The file names are what tie a PNG to a texture slot, so do not rename them:
+
+- `icon_0.png` is the inventory icon (`icon.png` also works if there is only one). This is the one most
+  people want.
+- `<renderer>__<material>__<slot>.png` is a model texture, for example `attach__0___MainTex.png`.
+  `_MainTex` is the colour texture, `_BumpMap` is the normal map, `_MetallicGlossMap` and
+  `_EmissionMap` are the metallic and glow maps.
+
+Textures are only ever applied to a copy of the material, so repainting an item you added never changes
+the vanilla item it was cloned from.
+
+This works for `action: Modify` too, where `<prefab>` is the existing item you are changing. Retexturing
+an item that already exists does change how that item looks everywhere, and unlike its stats it is not
+undone by `RM_Items_Reload` - remove the folder and restart to get the original artwork back.
+
+On a server, item definitions are synced to clients but the PNGs are not. A client that does not have
+the image files still gets the item with the correct stats and recipe, it just shows the original
+artwork.
+
 ### FAQ
 - Q: Why is my recipe not showing up?
   A. Ensure that the recipe uses the action 'Modify' or 'Add', by default recipes dumped from the object DB will not, they will use Enable. Which if the recipe already exists and is not disabled, does nothing.
 - Q: My yaml has an error about the `refund` key
   A. The refund key was removed in 0.4.1. If you need to remove the key from an existing yaml you can use the following regex `( +refund: \w+\n?)` and replace with nothing. This can be done from most text editors find and replace.
 
+- Q: My new item has the same food bar as the item I cloned it from
+  A. Set `name` on the item addition. The display name is what the game uses to tell foods apart, so
+  without one your item shares a food slot with its original.
+- Q: Why does adding an item need a restart?
+  A. An item's prefab name is its network identity, and Valheim builds that lookup once when the world
+  loads. Items therefore have to exist before then. Editing an item you already have does not need a
+  restart, only adding or removing one does.
+
+- Q: I changed a vanilla item and now I want it back to normal
+  A. Delete the modification and run `RM_Items_Reload`. The mod keeps the original values of anything it
+  touches and puts them back. Custom icons and textures are the exception, those need a restart.
+
+- Q: My status effect is not being applied
+  A. Status effects have to already exist, this mod cannot create them. Check the log, an effect that
+  could not be found is reported by name. `RM_Items_PrintAll` shows the names used by items that already
+  have one.
+
+- Q: I set a resistance and the item lost the resistances it already had
+  A. `resistances` replaces the whole list rather than adding to it. List every resistance you want the
+  item to end up with.
+
 ### Planned Features
 - More recipe validation
-- Conversion modifications (like ores for ingots)
+- ~~Conversion modifications (like ores for ingots)~~ (added in 0.5.0)
+- ~~Stat editing for weapons, armor and tools~~ (added in 0.6.0)
+- Custom status effects for added items
 - Export to WackyDB
 
 
