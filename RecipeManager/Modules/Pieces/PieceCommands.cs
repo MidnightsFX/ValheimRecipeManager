@@ -12,15 +12,13 @@ using Logger = Jotunn.Logger;
 
 namespace RecipeManager
 {
-    internal class PieceReloadCommand : ConsoleCommand
+    internal class PieceReloadCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Pieces_Reload";
 
         public override string Help => "Resynchronizes piece modifications.";
 
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             PieceUpdater.RevertPieceModifications();
             ValConfig.ReloadPieceFiles();
@@ -31,13 +29,13 @@ namespace RecipeManager
     }
 
     // Need to actually fill this out
-    internal class PiecePrintCommand : ConsoleCommand
+    internal class PiecePrintCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Pieces_PrintAll";
 
         public override string Help => "Prints all the Pieces found.";
 
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump piece list"); }
             String ODBRecipes_path = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllPiecesDebug.yaml");

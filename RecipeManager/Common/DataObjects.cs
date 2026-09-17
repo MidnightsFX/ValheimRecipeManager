@@ -51,16 +51,18 @@ namespace RecipeManager.Common
             public string prefab { get; set; }
             public List<ConversionDef> conversions { get; set; }
             // public ConversionAttributes propertyChanges { get; set; }
-            public int maxOres { get; set; } = 0;
-            public int maxFuel { get; set; } = 0;
-            public int fuelPerProduct { get; set; } = 0;
+            // Nullable so a field left out of the yaml leaves the station alone, while an explicit 0 is
+            // still applied. 0 is meaningful to the game: a smelter with maxFuel 0 needs no fuel at all.
+            public int? maxOres { get; set; }
+            public int? maxFuel { get; set; }
+            public int? fuelPerProduct { get; set; }
             //public bool requiresFuel { get; set; }
             //public bool requiresFire { get; set; }
-            public float conversionTime { get; set; }
+            public float? conversionTime { get; set; }
             public string fuelItem { get; set; }
             public string overCookedItem { get; set; }
             public float overCookedTime { get; set; }
-            public float secPerFuel { get; set; } 
+            public float? secPerFuel { get; set; }
         }
 
         public class ConversionDef
@@ -76,20 +78,22 @@ namespace RecipeManager.Common
             public ConversionAction action { get; set; }
             public GameObject prefab { get; set; }
             public ConversionType convertType { get; set; }
-            public Smelter originalSmelter { get; set; }
-            public Fermenter originalFermenter { get; set; }
-            public CookingStation originalCookingStation { get; set; }
+            // Whichever conversion component was found on the prefab, used to decide convertType.
+            // These alias the live components, the values they shipped with are snapshotted in
+            // ConversionUpdater instead.
+            public Smelter smelterComponent { get; set; }
+            public Fermenter fermenterComponent { get; set; }
+            public CookingStation cookingStationComponent { get; set; }
             public List<Smelter.ItemConversion> updatedSmelterConversions { get; set; }
             public List<Fermenter.ItemConversion> updatedFermenterConversions { get; set; }
             public List<CookingStation.ItemConversion> updatedCookingConversions { get; set; }
-            public int maxOres { get; set; }
-            public int maxFuel { get; set; }
-            public int fuelPerProduct { get; set; }
-            public float conversionTime { get; set; }
-            public bool requiresFuel { get; set; }
-            public bool requiresFire { get; set; }
+            // Null means the field was not configured and the station keeps its own value
+            public int? maxOres { get; set; }
+            public int? maxFuel { get; set; }
+            public int? fuelPerProduct { get; set; }
+            public float? conversionTime { get; set; }
             public float overCookedTime { get; set; }
-            public float secPerFuel { get; set; }
+            public float? secPerFuel { get; set; }
             public ItemDrop fuelItem { get; set; }
         }
 
@@ -97,7 +101,8 @@ namespace RecipeManager.Common
         {
             public PieceAction action { get; set; }
             public string prefab {  get; set; }
-            public Piece originalPiece { get; set; }
+            // The values a piece shipped with are snapshotted in PieceUpdater, a component reference here
+            // would just alias the object being modified.
             public Requirement[] updatedRequirements { get; set; }
             public CraftingStation RequiredToPlaceCraftingStation { get; set; }
             public bool AllowedInDungeon { get; set; } = false;

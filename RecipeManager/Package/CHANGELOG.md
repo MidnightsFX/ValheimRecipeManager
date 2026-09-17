@@ -1,3 +1,16 @@
+ **0.6.2**
+---
+```
+- Conversion maxOres, maxFuel and fuelPerProduct can now be set to 0. maxFuel 0 makes a smelter need no fuel,
+  fuelPerProduct 0 stops loaded fuel from being used up. An explicit 0 in a config was previously ignored.
+- Smelter conversionTime below 1 second is now raised to 1 with a warning. Smelters cannot produce faster than
+  one item per second, and a shorter time only burned more fuel per item. A conversionTime of 0 now logs a warning.
+- Fixes fuelItem never being applied to smelters and cooking stations
+- Fixes maxFuel and secPerFuel never being applied to cooking stations
+- Fixes modifying a cooking station turning off its fuel and fire requirements
+- Fixes config changes not being sent to connected players when the world is hosted from a game client
+```
+
  **0.6.1**
 ---
 ```

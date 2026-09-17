@@ -51,14 +51,50 @@ namespace RecipeManager {
             }
         }
 
+        /// <summary>
+        /// Every action needs either the recipe that already exists in the object DB or the replacement
+        /// built from the config. A tracked entry can be missing one of them when the prefab or recipe
+        /// name in the config did not resolve, so check before acting rather than silently doing nothing.
+        /// </summary>
+        private static bool HasTargetsForAction(TrackedRecipe tracked_recipe, string verb)
+        {
+            if (tracked_recipe == null) {
+                Logger.LogWarning($"A tracked recipe was null and cannot be {verb}, skipping it.");
+                return false;
+            }
+
+            bool needsOriginal = tracked_recipe.action == DataObjects.Action.Disable
+                || tracked_recipe.action == DataObjects.Action.Enable
+                || tracked_recipe.action == DataObjects.Action.Delete
+                || tracked_recipe.action == DataObjects.Action.Modify;
+            if (needsOriginal && tracked_recipe.originalRecipe == null) {
+                Logger.LogWarning($"No existing recipe could be found for {tracked_recipe.prefab}, so it cannot be {verb}. Check the prefab or recipeName in the config, RM_Recipes_PrintAll lists the recipes that exist.");
+                return false;
+            }
+
+            bool needsUpdated = tracked_recipe.action == DataObjects.Action.Add
+                || tracked_recipe.action == DataObjects.Action.Modify;
+            if (needsUpdated && tracked_recipe.updatedRecipe == null) {
+                Logger.LogWarning($"No replacement recipe could be built for {tracked_recipe.prefab}, so it cannot be {verb}. Check that the entry has a valid recipe block.");
+                return false;
+            }
+            return true;
+        }
+
         public static void ApplyRecipeModifcations(TrackedRecipe tracked_recipe)
         {
+            if (!HasTargetsForAction(tracked_recipe, "applied")) { return; }
+            if (ObjectDB.instance == null) {
+                Logger.LogWarning($"The object database is not available yet, the modification for {tracked_recipe.prefab} will be skipped.");
+                return;
+            }
+
             if (ValConfig.EnableDebugMode.Value) 
             {
                 if (tracked_recipe.updatedRecipe != null)
                 {
                     String resources = "";
-                    foreach (Piece.Requirement res in tracked_recipe.updatedRecipe.m_resources)
+                    foreach (Piece.Requirement res in tracked_recipe.updatedRecipe.m_resources ?? new Piece.Requirement[0])
                     {
                         resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}";
                     }
@@ -73,7 +109,7 @@ namespace RecipeManager {
                 if (tracked_recipe.originalRecipe != null)
                 {
                     String resources = "";
-                    foreach (Piece.Requirement res in tracked_recipe.originalRecipe.m_resources)
+                    foreach (Piece.Requirement res in tracked_recipe.originalRecipe.m_resources ?? new Piece.Requirement[0])
                     {
                         resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}";
                     }
@@ -141,6 +177,12 @@ namespace RecipeManager {
 
         public static void ReverseRecipeModifications(TrackedRecipe tracked_recipe)
         {
+            if (!HasTargetsForAction(tracked_recipe, "reverted")) { return; }
+            if (ObjectDB.instance == null) {
+                Logger.LogWarning($"The object database is not available yet, the revert for {tracked_recipe.prefab} will be skipped.");
+                return;
+            }
+
             bool update_applied = false;
             // Disable Action
             if (tracked_recipe.action == DataObjects.Action.Disable)
@@ -182,6 +224,7 @@ namespace RecipeManager {
 
         public static bool CheckIfRecipeWasModified(TrackedRecipe trackedRecipe)
         {
+            if (trackedRecipe == null || ObjectDB.instance == null) { return true; }
             bool modified = true;
             if (trackedRecipe.action == DataObjects.Action.Modify || trackedRecipe.action == DataObjects.Action.Delete) {
                 int index_of_original_recipe = ObjectDB.instance.m_recipes.IndexOf(trackedRecipe.originalRecipe);
@@ -245,6 +288,10 @@ namespace RecipeManager {
                     if (recipeMod.Value.recipe.noRecipeCost == false) {
                         if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Setting recipe cost requirements."); }
 
+                        if (recipeMod.Value.recipe.ingredients == null) {
+                            Logger.LogWarning($"{recipeMod.Key} has a recipe with no ingredients. Set noRecipeCost to true if the recipe is meant to be free, otherwise add ingredients. This modification will be skipped.");
+                            continue;
+                        }
                         cing_recipe = new RequirementConfig[recipeMod.Value.recipe.ingredients.Count];
                         int i_index = 0;
                         foreach (Ingrediant ingr in recipeMod.Value.recipe.ingredients)
@@ -326,8 +373,13 @@ namespace RecipeManager {
 
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Resolving resource requirement references."); }
                     bool valid = true;
-                    foreach (Piece.Requirement res in nRecipe.m_resources)
+                    foreach (Piece.Requirement res in nRecipe.m_resources ?? new Piece.Requirement[0])
                     {
+                        if (res.m_resItem == null) {
+                            valid = false;
+                            Logger.LogError($"A resource requirement on {recipeMod.Key} has no item attached, most likely because its prefab name does not exist. This Recipe modification will be skipped.");
+                            continue;
+                        }
                         var res_prefab = ObjectDB.instance.GetItemPrefab(res.m_resItem.name.Replace("JVLmock_", ""));
                         if (res_prefab != null) {
                             res.m_resItem = res_prefab.GetComponent<ItemDrop>(); 
@@ -351,12 +403,14 @@ namespace RecipeManager {
 
         public static int RecipeIndexForPrefab(string prefab)
         {
-            return ObjectDB.instance.m_recipes.FindIndex(m => m.m_item != null && m.m_item.name == prefab);
+            if (ObjectDB.instance == null || ObjectDB.instance.m_recipes == null) { return -1; }
+            return ObjectDB.instance.m_recipes.FindIndex(m => m != null && m.m_item != null && m.m_item.name == prefab);
         }
 
         public static int RecipeIndexForRecipeName(string recipe_name)
         {
-            return ObjectDB.instance.m_recipes.FindIndex(m => m.name != null && m.name == recipe_name);
+            if (ObjectDB.instance == null || ObjectDB.instance.m_recipes == null) { return -1; }
+            return ObjectDB.instance.m_recipes.FindIndex(m => m != null && m.name != null && m.name == recipe_name);
         }
 
         public static bool ModifyRecipeInJotunnManager(CustomRecipe recipe, CustomRecipe newRecipe)
@@ -379,8 +433,23 @@ namespace RecipeManager {
             return false;
         }
 
+        /// <summary>True when the object DB is built and the recipe is something we can act on.</summary>
+        private static bool RecipeDBReady(Recipe recipe, string operation)
+        {
+            if (ObjectDB.instance == null || ObjectDB.instance.m_recipes == null) {
+                Logger.LogWarning($"The object database is not available, cannot {operation} a recipe.");
+                return false;
+            }
+            if (recipe == null) {
+                Logger.LogWarning($"Cannot {operation} a recipe that could not be resolved, skipping it.");
+                return false;
+            }
+            return true;
+        }
+
         public static bool ModifyRecipeInODB(Recipe recipe, Recipe newRecipe)
         {
+            if (!RecipeDBReady(recipe, "modify") || newRecipe == null) { return false; }
             int index = ObjectDB.instance.m_recipes.IndexOf(recipe);
             if (index > -1)
             {
@@ -392,6 +461,7 @@ namespace RecipeManager {
 
         public static bool DisableRecipe(Recipe recipe)
         {
+            if (!RecipeDBReady(recipe, "disable")) { return false; }
             int index = ObjectDB.instance.m_recipes.IndexOf(recipe);
             if (index > -1)
             {
@@ -403,6 +473,7 @@ namespace RecipeManager {
 
         public static bool EnableRecipe(Recipe recipe)
         {
+            if (!RecipeDBReady(recipe, "enable")) { return false; }
             int index = ObjectDB.instance.m_recipes.IndexOf(recipe);
             if (index > -1)
             {
@@ -414,11 +485,15 @@ namespace RecipeManager {
 
         public static bool DeleteRecipe(Recipe recipe)
         {
+            if (!RecipeDBReady(recipe, "delete")) { return false; }
             return ObjectDB.instance.m_recipes.Remove(recipe);
         }
 
         public static bool AddRecipe(Recipe recipe)
         {
+            // Guarded hard: a null in ObjectDB.m_recipes breaks the game's own recipe iteration,
+            // not just ours, and the failure would surface far away from here.
+            if (!RecipeDBReady(recipe, "add")) { return false; }
             if(!ObjectDB.instance.m_recipes.Contains(recipe))
             {
                 ObjectDB.instance.m_recipes.Add(recipe);

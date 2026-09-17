@@ -12,15 +12,13 @@ using Logger = RecipeManager.Common.Logger;
 
 namespace RecipeManager
 {
-    internal class ItemReloadCommand : ConsoleCommand
+    internal class ItemReloadCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Items_Reload";
 
         public override string Help => "Reloads item additions and modifications. Stats, names, icons and textures are re-applied; new or removed items need a restart.";
 
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             ValConfig.ReloadItemFiles();
             ItemUpdater.ReapplyExistingItems();
@@ -37,13 +35,13 @@ namespace RecipeManager
         }
     }
 
-    internal class ItemPrintCommand : ConsoleCommand
+    internal class ItemPrintCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Items_PrintAll";
 
         public override string Help => "Prints items in the Object DB to a reference file, with their real stats. Usage: RM_Items_PrintAll [nameFilter]";
 
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             if (ObjectDB.instance == null)
             {
@@ -218,15 +216,13 @@ namespace RecipeManager
         }
     }
 
-    internal class TextureDumpCommand : ConsoleCommand
+    internal class TextureDumpCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Textures_Dump";
 
         public override string Help => "Dumps a prefab's icons and material textures to disk as PNGs. Usage: RM_Textures_Dump <prefabName>";
 
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             if (args == null || args.Length < 1 || string.IsNullOrEmpty(args[0]))
             {

@@ -9,15 +9,13 @@ using static RecipeManager.Common.DataObjects;
 
 namespace RecipeManager
 {
-    internal class RecipeReloadCommand : ConsoleCommand
+    internal class RecipeReloadCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Recipes_Reload";
 
         public override string Help => "Resynchronizes recipes.";
 
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             RecipeUpdater.RecipeRevert();
             // read out the file
@@ -28,27 +26,25 @@ namespace RecipeManager
         }
     }
 
-    internal class RecipeUnapplyCommand : ConsoleCommand
+    internal class RecipeUnapplyCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Recipes_Unapply";
 
         public override string Help => "Removes recipe modifications.";
 
-        public override bool IsCheat => true;
-
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             RecipeUpdater.RecipeRevert();
         }
     }
 
-    internal class RecipePrintCommand : ConsoleCommand
+    internal class RecipePrintCommand : AdminConsoleCommand
     {
         public override string Name => "RM_Recipes_PrintAll";
 
         public override string Help => "Prints all the recipes stored in the Object DB";
 
-        public override void Run(string[] args)
+        protected override void Execute(string[] args)
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump recipes"); }
             String ODBRecipes_path = Path.Combine(Paths.ConfigPath, "RecipeManager", "ObjectDBRecipes.yaml");

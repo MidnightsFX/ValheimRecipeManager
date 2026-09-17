@@ -282,6 +282,12 @@ pieceModifications:
 </details>
 
 ### Conversion Examples
+Any field left out of a conversion modification keeps the station's own value. A few values need care:
+- `maxFuel: 0` makes a smelter type station need no fuel at all.
+- `fuelPerProduct: 0` means fuel still has to be loaded, but it is never used up.
+- `maxOres: 0` makes the station accept no items to convert.
+- Smelter type stations produce at most one item per second, and burn `fuelPerProduct / conversionTime` fuel each second. A `conversionTime` below 1 would only burn more fuel per item, so it is raised to 1. A `conversionTime` of 0 is ignored.
+
 Makes the charcoal kiln take wood, finewood and corewood
 <details>
   <summary>Yaml example</summary>

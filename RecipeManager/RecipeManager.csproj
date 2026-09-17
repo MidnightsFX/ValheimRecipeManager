@@ -47,22 +47,23 @@
     <StartWorkingDirectory>$(VALHEIM_INSTALL)</StartWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Modules\AdminConsoleCommand.cs" />
     <Compile Include="Common\ValConfig.cs" />
     <Compile Include="Common\DataObjects.cs" />
     <Compile Include="Common\ItemAttributes.cs" />
     <Compile Include="Common\Logger.cs" />
     <Compile Include="Common\TextureTools.cs" />
-    <Compile Include="ConversionCommands.cs" />
-    <Compile Include="ConversionUpdater.cs" />
-    <Compile Include="ItemCommands.cs" />
-    <Compile Include="ItemUpdater.cs" />
-    <Compile Include="PieceCommands.cs" />
-    <Compile Include="PieceUpdater.cs" />
+    <Compile Include="Modules\Conversions\ConversionCommands.cs" />
+    <Compile Include="Modules\Conversions\ConversionUpdater.cs" />
+    <Compile Include="Modules\Items\ItemCommands.cs" />
+    <Compile Include="Modules\Items\ItemUpdater.cs" />
+    <Compile Include="Modules\Pieces\PieceCommands.cs" />
+    <Compile Include="Modules\Pieces\PieceUpdater.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
-    <Compile Include="RecipeCommands.cs" />
+    <Compile Include="Modules\Recipes\RecipeCommands.cs" />
     <Compile Include="RecipeManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RecipeUpdater.cs" />
+    <Compile Include="Modules\Recipes\RecipeUpdater.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

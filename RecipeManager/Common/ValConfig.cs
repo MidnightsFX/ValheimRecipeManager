@@ -490,6 +490,14 @@ namespace RecipeManager.Common
             return filename;
         }
 
+        /// <summary>
+        /// True for a dedicated server and for a player hosting from their own game. Checking for a headless
+        /// instance missed the second case, so clients of a player hosted world never got config changes.
+        /// </summary>
+        private static bool IsServerInstance() {
+            return ZNet.instance != null && ZNet.instance.IsServer();
+        }
+
         private static void UpdateRecipeConfigFilesOnChange(object sender, FileSystemEventArgs e)
         {
             if (!File.Exists(recipeConfigFilePath)) { return; }
@@ -499,7 +507,7 @@ namespace RecipeManager.Common
             RecipeUpdater.BuildRecipesForTracking();
             RecipeUpdater.SecondaryRecipeSync();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
-            if (GUIManager.IsHeadless()) {
+            if (IsServerInstance()) {
                 try {
                     RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
                     if (EnableDebugMode.Value) { Logger.LogInfo("Sent recipe configs to clients."); }
@@ -522,7 +530,7 @@ namespace RecipeManager.Common
             PieceUpdater.BuildPieceTracker();
             PieceUpdater.PieceUpdateRunner();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
-            if (GUIManager.IsHeadless()) {
+            if (IsServerInstance()) {
                 try {
                     PiecesConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
                     if (EnableDebugMode.Value) { Logger.LogInfo("Sent piece configs to clients."); }
@@ -544,7 +552,7 @@ namespace RecipeManager.Common
             ConversionUpdater.BuildConversionTracker();
             ConversionUpdater.ConversionUpdateRunner();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated ConversionModifications in-memory values."); }
-            if (GUIManager.IsHeadless()) {
+            if (IsServerInstance()) {
                 try
                 {
                     ConversionConfigRPC.SendPackage(ZNet.instance.m_peers, SendConversionConfigs());
@@ -570,7 +578,7 @@ namespace RecipeManager.Common
             ReloadItemFiles();
             ItemUpdater.ReapplyExistingItems();
             if (EnableDebugMode.Value) { Logger.LogInfo("Updated ItemAdditions in-memory values."); }
-            if (GUIManager.IsHeadless()) {
+            if (IsServerInstance()) {
                 try
                 {
                     ItemsConfigRPC.SendPackage(ZNet.instance.m_peers, SendItemConfigs());
