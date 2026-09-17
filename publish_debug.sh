@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DLL=RecipeManager/bin/Debug/RecipeManager.dll
+DLL=RecipeManager/bin/Debug/net48/RecipeManager.dll
 PLUGINS=/home/$USER/.local/share/Steam/steamapps/common/Valheim/BepInEx/plugins
 
 # Check that source files exist and are readable

@@ -1,126 +1,92 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\JotunnLib.2.24.3\build\JotunnLib.props" Condition="Exists('..\packages\JotunnLib.2.24.3\build\JotunnLib.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{DEAF4438-8089-40ED-8175-398E1261D45B}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <TargetFramework>net48</TargetFramework>
     <RootNamespace>RecipeManager</RootNamespace>
     <AssemblyName>RecipeManager</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-    <TargetFrameworkProfile />
     <LangVersion>10</LangVersion>
+    <!-- Properties/AssemblyInfo.cs still owns the assembly attributes, and derives the
+         version from RecipeManager.PluginVersion. Letting the SDK generate its own set
+         would collide with every one of them. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
+    <DebugType>pdbonly</DebugType>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
-    <StartAction>Program</StartAction>
-    <StartProgram>$(VALHEIM_INSTALL)\valheim.exe</StartProgram>
-    <StartArguments>-console</StartArguments>
-    <StartWorkingDirectory>$(VALHEIM_INSTALL)</StartWorkingDirectory>
-  </PropertyGroup>
+
+  <!-- Releases/ is the archive of packaged zips, one per past version. It is not source,
+       and the SDK's default globs would otherwise walk it on every evaluation. -->
   <ItemGroup>
-    <Compile Include="Common\ValConfig.cs" />
-    <Compile Include="Common\DataObjects.cs" />
-    <Compile Include="Common\ItemAttributes.cs" />
-    <Compile Include="Common\Logger.cs" />
-    <Compile Include="Common\TextureTools.cs" />
-    <Compile Include="Modules\Conversions\ConversionCommands.cs" />
-    <Compile Include="Modules\Conversions\ConversionUpdater.cs" />
-    <Compile Include="Modules\Items\ItemCommands.cs" />
-    <Compile Include="Modules\Items\ItemUpdater.cs" />
-    <Compile Include="Modules\Pieces\PieceCommands.cs" />
-    <Compile Include="Modules\Pieces\PieceUpdater.cs" />
-    <Compile Include="Properties\IgnoreAccessModifiers.cs" />
-    <Compile Include="Modules\Recipes\RecipeCommands.cs" />
-    <Compile Include="RecipeManager.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Modules\Recipes\RecipeUpdater.cs" />
+    <Compile Remove="Releases\**" />
+    <EmbeddedResource Remove="Releases\**" />
+    <None Remove="Releases\**" />
   </ItemGroup>
+
   <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
-    <None Include="Package\CHANGELOG.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Package\plugins\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Package\manifest.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Package\icon.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="ILRepack, Version=2.0.33.0, Culture=neutral, PublicKeyToken=c3e9373f1c31208e, processorArchitecture=MSIL">
-      <HintPath>..\packages\ILRepack.Lib.2.0.33\lib\net472\ILRepack.dll</HintPath>
-    </Reference>
-    <Reference Include="Jotunn, Version=2.24.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\JotunnLib.2.24.3\lib\net462\Jotunn.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
+    <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="YamlDotNet, Version=16.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
-      <HintPath>..\packages\YamlDotNet.16.3.0\lib\net47\YamlDotNet.dll</HintPath>
-    </Reference>
+    <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JotunnLib" Version="2.24.3" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- JotunnLib's reference list still carries assemblies that Valheim's Unity version
+         dropped. Nothing here uses them, and leaving them in warns MSB3245 every build. -->
+    <Reference Remove="UnityEngine.ProfilerModule" Condition="!Exists('$(VALHEIM_MANAGED)/UnityEngine.ProfilerModule.dll')" />
+  </ItemGroup>
+
   <PropertyGroup>
-    <VALHEIM_MANAGED>$(VALHEIM_INSTALL)/valheim_Data/Managed</VALHEIM_MANAGED>
+    <!-- VALHEIM_MANAGED and BEPINEX_PATH are resolved in ..\Directory.Build.props, which
+         is evaluated before JotunnLib's package props and so wins the "only set this if it
+         is still empty" race they use. Only fill in what is still missing here. -->
+    <VALHEIM_MANAGED Condition=" '$(VALHEIM_MANAGED)' == '' ">$(VALHEIM_INSTALL)/valheim_Data/Managed</VALHEIM_MANAGED>
+    <BEPINEX_PATH Condition=" '$(BEPINEX_PATH)' == '' ">$(VALHEIM_INSTALL)/BepInEx</BEPINEX_PATH>
     <UNITY_FOLDER>$(SolutionDir)JotunnModUnity</UNITY_FOLDER>
+    <!-- Fall back to the sibling folder when SolutionDir isn't this repo's root (e.g. building the project alone) -->
+    <UNITY_FOLDER Condition="!Exists('$(UNITY_FOLDER)')">$(ProjectDir)..\JotunnModUnity</UNITY_FOLDER>
   </PropertyGroup>
+
+  <!-- Not hooked to Build: run it by hand (`dotnet build -t:CopyToUnity`) when the Unity
+       project needs refreshed assemblies. -->
   <Target Name="CopyToUnity">
     <Message Text="Copy To Unity" Importance="high" />
     <Copy SourceFiles="$(TargetDir)Jotunn.dll" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
     <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
-    <Copy SourceFiles="$(TargetDir)$(TargetName).dll.mdb" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
+    <!-- mdb generation doesn't work from portable pdbs, which are the only kind supported under Linux -->
+    <Copy Condition="Exists('$(TargetDir)$(TargetName).dll.mdb')" SourceFiles="$(TargetDir)$(TargetName).dll.mdb" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
   </Target>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
   <PropertyGroup>
     <BuildDependsOn>
       $(BuildDependsOn);
     </BuildDependsOn>
   </PropertyGroup>
-  <PropertyGroup>
-  </PropertyGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\JotunnLib.2.24.3\build\JotunnLib.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\JotunnLib.2.24.3\build\JotunnLib.props'))" />
-  </Target>
   <!-- BEGIN mod-tools (managed block; replaced by `mod-tools setup`) -->
   <PropertyGroup>
     <RepoRoot Condition=" '$(RepoRoot)' == '' ">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../'))</RepoRoot>

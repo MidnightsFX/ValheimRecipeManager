@@ -1,3 +1,11 @@
+ **0.6.3**
+---
+```
+- The RM_ console commands are now gated behind `devcommands` instead of the world's admin list.
+  Enable the console, run `devcommands`, then use them on the instance hosting the world.
+- Jotunn version bumped
+```
+
  **0.6.2**
 ---
 ```
@@ -9,8 +17,6 @@
 - Fixes maxFuel and secPerFuel never being applied to cooking stations
 - Fixes modifying a cooking station turning off its fuel and fire requirements
 - Fixes config changes not being sent to connected players when the world is hosted from a game client
-- The RM_ console commands are now gated behind `devcommands` instead of the world's admin list.
-  Enable the console, run `devcommands`, then use them on the instance hosting the world.
 ```
 
  **0.6.1**

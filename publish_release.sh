@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DLL=RecipeManager/bin/Release/RecipeManager.dll
+DLL=RecipeManager/bin/Release/net48/RecipeManager.dll
 PLUGINS=RecipeManager/Package/plugins
 README=README.md
 #TRANSLATIONS=Translations
