@@ -47,7 +47,6 @@
     <StartWorkingDirectory>$(VALHEIM_INSTALL)</StartWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Modules\AdminConsoleCommand.cs" />
     <Compile Include="Common\ValConfig.cs" />
     <Compile Include="Common\DataObjects.cs" />
     <Compile Include="Common\ItemAttributes.cs" />

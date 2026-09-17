@@ -12,13 +12,16 @@ using Logger = RecipeManager.Common.Logger;
 
 namespace RecipeManager
 {
-    internal class ItemReloadCommand : AdminConsoleCommand
+    internal class ItemReloadCommand : ConsoleCommand
     {
         public override string Name => "RM_Items_Reload";
 
         public override string Help => "Reloads item additions and modifications. Stats, names, icons and textures are re-applied; new or removed items need a restart.";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             ValConfig.ReloadItemFiles();
             ItemUpdater.ReapplyExistingItems();
@@ -35,13 +38,16 @@ namespace RecipeManager
         }
     }
 
-    internal class ItemPrintCommand : AdminConsoleCommand
+    internal class ItemPrintCommand : ConsoleCommand
     {
         public override string Name => "RM_Items_PrintAll";
 
         public override string Help => "Prints items in the Object DB to a reference file, with their real stats. Usage: RM_Items_PrintAll [nameFilter]";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             if (ObjectDB.instance == null)
             {
@@ -216,13 +222,16 @@ namespace RecipeManager
         }
     }
 
-    internal class TextureDumpCommand : AdminConsoleCommand
+    internal class TextureDumpCommand : ConsoleCommand
     {
         public override string Name => "RM_Textures_Dump";
 
         public override string Help => "Dumps a prefab's icons and material textures to disk as PNGs. Usage: RM_Textures_Dump <prefabName>";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             if (args == null || args.Length < 1 || string.IsNullOrEmpty(args[0]))
             {

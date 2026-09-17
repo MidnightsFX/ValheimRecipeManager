@@ -9,13 +9,16 @@ using static RecipeManager.Common.DataObjects;
 
 namespace RecipeManager
 {
-    internal class RecipeReloadCommand : AdminConsoleCommand
+    internal class RecipeReloadCommand : ConsoleCommand
     {
         public override string Name => "RM_Recipes_Reload";
 
         public override string Help => "Resynchronizes recipes.";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             RecipeUpdater.RecipeRevert();
             // read out the file
@@ -26,25 +29,31 @@ namespace RecipeManager
         }
     }
 
-    internal class RecipeUnapplyCommand : AdminConsoleCommand
+    internal class RecipeUnapplyCommand : ConsoleCommand
     {
         public override string Name => "RM_Recipes_Unapply";
 
         public override string Help => "Removes recipe modifications.";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             RecipeUpdater.RecipeRevert();
         }
     }
 
-    internal class RecipePrintCommand : AdminConsoleCommand
+    internal class RecipePrintCommand : ConsoleCommand
     {
         public override string Name => "RM_Recipes_PrintAll";
 
         public override string Help => "Prints all the recipes stored in the Object DB";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump recipes"); }
             String ODBRecipes_path = Path.Combine(Paths.ConfigPath, "RecipeManager", "ObjectDBRecipes.yaml");

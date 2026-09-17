@@ -91,7 +91,7 @@ RM_Items_PrintAll - This prints the items in the object DB, with the stats they 
 
 RM_Textures_Dump &lt;prefabName&gt; - This dumps a prefab's icons and material textures to \BepInEx\config\RecipeManager\Textures\&lt;prefabName&gt;\ as PNGs.
 
-Commands require [url=https://valheim.fandom.com/wiki/Developer_console]enabling the in-game console[/url].
+Commands require [url=https://valheim.fandom.com/wiki/Developer_console]enabling the in-game console[/url] and running devcommands first. Valheim only treats devcommands as enabled on the instance that hosts the world, so run them in a solo game or on the machine hosting, not from a client connected to someone else's server.
 
 If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add --console
 

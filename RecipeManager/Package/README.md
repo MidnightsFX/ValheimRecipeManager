@@ -89,7 +89,10 @@ This mod adds two new commands which can be used to speed up recipe modification
 
 `RM_Textures_Dump <prefabName>` - This dumps a prefab's icons and material textures to `\BepInEx\config\RecipeManager\Textures\<prefabName>\` as PNGs.
 
-Commands require [enabling the in-game console](https://valheim.fandom.com/wiki/Developer_console).
+Commands require [enabling the in-game console](https://valheim.fandom.com/wiki/Developer_console)
+and running `devcommands` first. Valheim only treats `devcommands` as enabled on the instance that
+hosts the world, so run them in a solo game or on the machine hosting, not from a client connected
+to someone else's server.
 
 If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add `--console`
 

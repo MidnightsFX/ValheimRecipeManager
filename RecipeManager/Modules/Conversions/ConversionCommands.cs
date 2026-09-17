@@ -14,13 +14,16 @@ using Logger = RecipeManager.Common.Logger;
 
 namespace RecipeManager
 {
-    internal class ConversionPrintCommand : AdminConsoleCommand
+    internal class ConversionPrintCommand : ConsoleCommand
     {
         public override string Name => "RM_Conversion_PrintAll";
 
         public override string Help => "Prints all conversions.";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump conversion list"); }
             String ExistingConversions = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllConversionsDebug.yaml");
@@ -129,13 +132,16 @@ namespace RecipeManager
         }
     }
 
-    internal class ConversionReloadCommand : AdminConsoleCommand
+    internal class ConversionReloadCommand : ConsoleCommand
     {
         public override string Name => "RM_Conversion_Reload";
 
         public override string Help => "Resynchronizes conversion modifications.";
 
-        protected override void Execute(string[] args)
+        // Gated behind `devcommands` - see IsCheat in Jotunn's ConsoleCommand.
+        public override bool IsCheat => true;
+
+        public override void Run(string[] args)
         {
             ConversionUpdater.RevertConversionModifications();
             ValConfig.ReloadConversionFiles();
