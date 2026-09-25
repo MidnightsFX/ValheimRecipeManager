@@ -1,3 +1,16 @@
+ **0.6.4**
+---
+```
+- Fixes editing the battering ram and frost kiln. Smelter conversions can now leave out toPrefab (the item is
+  used up, like the ram burning wood) or fromPrefab (made from fuel alone, like the frost kiln). A conversion
+  missing either one previously stopped every conversion modification after it from loading.
+- Fixes the battering ram never being modified, its smelter sits on a child object that was not searched
+- Fixes RM_Conversion_PrintAll printing the battering ram as "kiln engine" instead of BatteringRam
+- Fixes action: Remove never removing a conversion. Conversions are now matched on their fromPrefab and toPrefab.
+- Fixes a Modify with no conversions list removing every conversion from the station, it now keeps them
+- Warns when a smelter is set up so it can never produce
+```
+
  **0.6.3**
 ---
 ```

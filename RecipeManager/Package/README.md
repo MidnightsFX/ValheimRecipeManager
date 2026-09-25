@@ -285,11 +285,20 @@ pieceModifications:
 </details>
 
 ### Conversion Examples
-Any field left out of a conversion modification keeps the station's own value. A few values need care:
+Any field left out of a conversion modification keeps the station's own value, `conversions` included. A few values need care:
 - `maxFuel: 0` makes a smelter type station need no fuel at all.
 - `fuelPerProduct: 0` means fuel still has to be loaded, but it is never used up.
 - `maxOres: 0` makes the station accept no items to convert.
 - Smelter type stations produce at most one item per second, and burn `fuelPerProduct / conversionTime` fuel each second. A `conversionTime` below 1 would only burn more fuel per item, so it is raised to 1. A `conversionTime` of 0 is ignored.
+
+`action: Modify` replaces the station's conversions with the ones listed. `action: Add` adds them to the conversions the station already has, and `action: Remove` takes them away. A conversion is matched on both its `fromPrefab` and its `toPrefab`, so a Remove has to list the conversion the same way `RM_Conversion_PrintAll` prints it.
+
+Smelter type stations can leave out one side of a conversion:
+- Leave out `toPrefab` and the item is used up without making anything. This is how the battering ram burns wood.
+- Leave out `fromPrefab` and the item is made from fuel alone. This is how the frost kiln makes frozen fuel from ice. It only works on a station with `maxOres: 0`, and only the first conversion without a `fromPrefab` is ever made.
+- The battering ram has nowhere to load fuel and the frost kiln has nowhere to load items, so keep the ram at `maxFuel: 0` and the kiln at `maxOres: 0` or they never run.
+
+Fermenters and cooking stations always need both sides.
 
 Makes the charcoal kiln take wood, finewood and corewood
 <details>
@@ -524,6 +533,55 @@ conversionModifications:
       toPrefab: LinenThread
     maxOres: 50
     conversionTime: 3
+```
+</details>
+
+Lets the battering ram run on coal as well as wood, and hold twice as much.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  BatteringRam:
+    action: Modify
+    prefab: BatteringRam
+    conversions:
+    - fromPrefab: Wood
+    - fromPrefab: FineWood
+    - fromPrefab: RoundLog
+    - fromPrefab: Blackwood
+    - fromPrefab: Coal
+    maxOres: 50
+```
+</details>
+
+Stops the battering ram taking blackwood.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  ram_no_blackwood:
+    action: Remove
+    prefab: BatteringRam
+    conversions:
+    - fromPrefab: Blackwood
+```
+</details>
+
+Makes the frost kiln produce frozen fuel twice as fast, from 2 ice instead of 5.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  piece_FrostKiln:
+    action: Modify
+    prefab: piece_FrostKiln
+    conversions:
+    - toPrefab: FrozenFuel
+    fuelPerProduct: 2
+    conversionTime: 15
 ```
 </details>
 

@@ -86,6 +86,15 @@ namespace RecipeManager
         }
 
         /// <summary>
+        /// The station component on an object or any of its children. Most stations sit on the prefab's
+        /// root, but the battering ram keeps its Smelter on a child object ("kiln engine"). Inactive objects
+        /// are included since Jotunn keeps cloned prefabs under an inactive container.
+        /// </summary>
+        internal static T FindStation<T>(GameObject go) where T : Component {
+            return go.GetComponentInChildren<T>(true);
+        }
+
+        /// <summary>
         /// Records what a station looked like before it is written to. Only the first call for a given
         /// object does anything, so this is safe to put in front of every modification.
         /// </summary>
@@ -103,7 +112,7 @@ namespace RecipeManager
             CaptureOriginal(go);
             switch(conversion.convertType) {
                 case ConversionType.Smelter:
-                    Smelter smelt = go.GetComponent<Smelter>();
+                    Smelter smelt = FindStation<Smelter>(go);
                     if (smelt == null) {
                         Logger.LogInfo($"Smelter component not found on {go.name}, cannot apply conversion modifications.");
                         break;
@@ -117,7 +126,7 @@ namespace RecipeManager
                     if (conversion.maxFuel.HasValue) { smelt.m_maxFuel = conversion.maxFuel.Value; }
                     break;
                 case ConversionType.Fermenter:
-                    Fermenter ferment = go.GetComponent<Fermenter>();
+                    Fermenter ferment = FindStation<Fermenter>(go);
                     if (ferment == null) {
                         Logger.LogInfo($"Fermenter component not found on {go.name}, cannot apply conversion modifications.");
                         break;
@@ -126,7 +135,7 @@ namespace RecipeManager
                     if (conversion.conversionTime.HasValue) { ferment.m_fermentationDuration = conversion.conversionTime.Value; }
                     break;
                 case ConversionType.CookingStation:
-                    CookingStation cook = go.GetComponent<CookingStation>();
+                    CookingStation cook = FindStation<CookingStation>(go);
                     if (cook == null) {
                         Logger.LogInfo($"CookingStation component not found on {go.name}, cannot apply conversion modifications.");
                         break;
@@ -140,51 +149,74 @@ namespace RecipeManager
             }
         }
 
-        /// <summary>Adds every entry that is not already present. Tolerates a config that defined no conversions.</summary>
-        private static void AddEntries<T>(List<T> target, List<T> entries) {
+        /// <summary>
+        /// Adds every entry the station does not already have. Tolerates a config that defined no conversions.
+        /// Entries are built fresh from the config, so they never share an instance with what the station
+        /// already holds and are compared with <paramref name="same"/> instead.
+        /// </summary>
+        private static void AddEntries<T>(List<T> target, List<T> entries, Func<T, T, bool> same) {
             if (entries == null) { return; }
             foreach (T entry in entries) {
-                if (target.Contains(entry) == false) { target.Add(entry); }
+                if (target.Exists(existing => same(existing, entry)) == false) { target.Add(entry); }
             }
         }
 
-        private static void RemoveEntries<T>(List<T> target, List<T> entries) {
+        private static void RemoveEntries<T>(List<T> target, List<T> entries, Func<T, T, bool> same) {
             if (entries == null) { return; }
             foreach (T entry in entries) {
-                target.Remove(entry);
+                target.RemoveAll(existing => same(existing, entry));
             }
+        }
+
+        // A conversion is identified by what it takes and what it makes. A smelter can leave either side
+        // empty, and an empty side only matches another empty side.
+        private static bool SameItem(ItemDrop a, ItemDrop b) {
+            if (a == null || b == null) { return a == null && b == null; }
+            return a.gameObject.name == b.gameObject.name;
+        }
+
+        private static bool SameConversion(Smelter.ItemConversion a, Smelter.ItemConversion b) {
+            return a != null && b != null && SameItem(a.m_from, b.m_from) && SameItem(a.m_to, b.m_to);
+        }
+
+        private static bool SameConversion(Fermenter.ItemConversion a, Fermenter.ItemConversion b) {
+            return a != null && b != null && SameItem(a.m_from, b.m_from) && SameItem(a.m_to, b.m_to);
+        }
+
+        private static bool SameConversion(CookingStation.ItemConversion a, CookingStation.ItemConversion b) {
+            return a != null && b != null && SameItem(a.m_from, b.m_from) && SameItem(a.m_to, b.m_to);
         }
 
         public static void AddConversion(TrackedConversion conversion, GameObject go) {
             CaptureOriginal(go);
             switch (conversion.convertType) {
                 case ConversionType.Smelter:
-                    Smelter smelt = go.GetComponent<Smelter>();
+                    Smelter smelt = FindStation<Smelter>(go);
                     if (smelt == null) {
                         Logger.LogWarning($"Smelter component not found on {go.name}, no conversions can be added to it.");
                         break;
                     }
                     // A station that shipped with no conversions at all has a null list, give it one to fill
                     if (smelt.m_conversion == null) { smelt.m_conversion = new List<Smelter.ItemConversion>(); }
-                    AddEntries(smelt.m_conversion, conversion.updatedSmelterConversions);
+                    AddEntries(smelt.m_conversion, conversion.updatedSmelterConversions, SameConversion);
                     break;
                 case ConversionType.Fermenter:
-                    Fermenter ferment = go.GetComponent<Fermenter>();
+                    Fermenter ferment = FindStation<Fermenter>(go);
                     if (ferment == null) {
                         Logger.LogWarning($"Fermenter component not found on {go.name}, no conversions can be added to it.");
                         break;
                     }
                     if (ferment.m_conversion == null) { ferment.m_conversion = new List<Fermenter.ItemConversion>(); }
-                    AddEntries(ferment.m_conversion, conversion.updatedFermenterConversions);
+                    AddEntries(ferment.m_conversion, conversion.updatedFermenterConversions, SameConversion);
                     break;
                 case ConversionType.CookingStation:
-                    CookingStation cook = go.GetComponent<CookingStation>();
+                    CookingStation cook = FindStation<CookingStation>(go);
                     if (cook == null) {
                         Logger.LogWarning($"CookingStation component not found on {go.name}, no conversions can be added to it.");
                         break;
                     }
                     if (cook.m_conversion == null) { cook.m_conversion = new List<CookingStation.ItemConversion>(); }
-                    AddEntries(cook.m_conversion, conversion.updatedCookingConversions);
+                    AddEntries(cook.m_conversion, conversion.updatedCookingConversions, SameConversion);
                     break;
             }
         }
@@ -195,28 +227,28 @@ namespace RecipeManager
             switch (conversion.convertType)
             {
                 case ConversionType.Smelter:
-                    Smelter smelt = go.GetComponent<Smelter>();
+                    Smelter smelt = FindStation<Smelter>(go);
                     if (smelt == null || smelt.m_conversion == null) {
                         Logger.LogWarning($"Smelter component not found on {go.name}, no conversions can be removed from it.");
                         break;
                     }
-                    RemoveEntries(smelt.m_conversion, conversion.updatedSmelterConversions);
+                    RemoveEntries(smelt.m_conversion, conversion.updatedSmelterConversions, SameConversion);
                     break;
                 case ConversionType.Fermenter:
-                    Fermenter ferment = go.GetComponent<Fermenter>();
+                    Fermenter ferment = FindStation<Fermenter>(go);
                     if (ferment == null || ferment.m_conversion == null) {
                         Logger.LogWarning($"Fermenter component not found on {go.name}, no conversions can be removed from it.");
                         break;
                     }
-                    RemoveEntries(ferment.m_conversion, conversion.updatedFermenterConversions);
+                    RemoveEntries(ferment.m_conversion, conversion.updatedFermenterConversions, SameConversion);
                     break;
                 case ConversionType.CookingStation:
-                    CookingStation cook = go.GetComponent<CookingStation>();
+                    CookingStation cook = FindStation<CookingStation>(go);
                     if (cook == null || cook.m_conversion == null) {
                         Logger.LogWarning($"CookingStation component not found on {go.name}, no conversions can be removed from it.");
                         break;
                     }
-                    RemoveEntries(cook.m_conversion, conversion.updatedCookingConversions);
+                    RemoveEntries(cook.m_conversion, conversion.updatedCookingConversions, SameConversion);
                     break;
             }
         }
@@ -240,17 +272,19 @@ namespace RecipeManager
                         continue;
                     }
                     tconv.prefab = tgo;
-                    Smelter tsmelt = (tgo.GetComponent<Smelter>() ?? tgo.GetComponentInChildren<Smelter>()) ?? tgo.GetComponentInParent<Smelter>();
+                    // Looked up the same way the modifications are applied, so a station found here is one
+                    // that can actually be written to
+                    Smelter tsmelt = FindStation<Smelter>(tgo);
                     if (tsmelt != null) {
                         tconv.smelterComponent = tsmelt;
                         tconv.convertType = ConversionType.Smelter;
                     }
-                    Fermenter tferm = (tgo.GetComponent<Fermenter>() ?? tgo.GetComponentInChildren<Fermenter>()) ?? tgo.GetComponentInParent<Fermenter>();
+                    Fermenter tferm = FindStation<Fermenter>(tgo);
                     if (tferm != null) {
                         tconv.fermenterComponent = tferm;
                         tconv.convertType = ConversionType.Fermenter;
                     }
-                    CookingStation tcook = (tgo.GetComponent<CookingStation>() ?? tgo.GetComponentInChildren<CookingStation>()) ?? tgo.GetComponentInParent<CookingStation>();
+                    CookingStation tcook = FindStation<CookingStation>(tgo);
                     if (tcook != null) {
                         tconv.cookingStationComponent = tcook;
                         tconv.convertType = ConversionType.CookingStation;
@@ -265,23 +299,23 @@ namespace RecipeManager
                     Logger.LogWarning($"{cov.Value.prefab} did not have an attached Fermenter, Smelter, or CookingStation. This modification will be skipped.");
                     continue;
                 }
+                // Each station's conversion list is left null when the entry has no conversions, so a Modify
+                // that only changes timings or fuel keeps the station's own conversions
                 switch (tconv.convertType) {
                     case ConversionType.Fermenter:
                         Logger.LogDebug("Setting Fermenter");
-                        List<Fermenter.ItemConversion> fermConvs = new List<Fermenter.ItemConversion> ();
-                        if (cov.Value.conversions != null && cov.Value.conversions.Count > 0) {
+                        if (cov.Value.conversions != null) {
+                            List<Fermenter.ItemConversion> fermConvs = new List<Fermenter.ItemConversion> ();
                             foreach (var conv in cov.Value.conversions) {
-                                Logger.LogDebug($"Creating Conversion {conv.fromPrefab} to {conv.toPrefab}");
-                                GetConversionGOs(conv, out GameObject togo, out GameObject fromgo);
-                                if (togo == null || fromgo == null) { continue; }
+                                if (ResolveConversion(cov.Key, conv, true, out ItemDrop from, out ItemDrop to) == false) { continue; }
                                 Fermenter.ItemConversion fconv = new Fermenter.ItemConversion();
-                                fconv.m_to = togo.GetComponent<ItemDrop>();
-                                fconv.m_from = fromgo.GetComponent<ItemDrop>();
+                                fconv.m_to = to;
+                                fconv.m_from = from;
                                 fconv.m_producedItems = conv.amount;
                                 fermConvs.Add(fconv);
                             }
+                            tconv.updatedFermenterConversions = fermConvs;
                         }
-                        tconv.updatedFermenterConversions = fermConvs;
                         if (cov.Value.conversionTime.HasValue) {
                             if (cov.Value.conversionTime.Value > 0) {
                                 tconv.conversionTime = cov.Value.conversionTime;
@@ -292,20 +326,18 @@ namespace RecipeManager
                         break;
                     case ConversionType.CookingStation:
                         Logger.LogDebug("Setting CookingStation");
-                        List<CookingStation.ItemConversion> cookConvs = new List<CookingStation.ItemConversion>();
-                        if (cov.Value.conversions != null && cov.Value.conversions.Count > 0) {
+                        if (cov.Value.conversions != null) {
+                            List<CookingStation.ItemConversion> cookConvs = new List<CookingStation.ItemConversion>();
                             foreach (var conv in cov.Value.conversions) {
-                                Logger.LogDebug($"Creating Conversion {conv.fromPrefab} to {conv.toPrefab}");
-                                GetConversionGOs(conv, out GameObject togo, out GameObject fromgo);
-                                if (togo == null || fromgo == null) { continue; }
+                                if (ResolveConversion(cov.Key, conv, true, out ItemDrop from, out ItemDrop to) == false) { continue; }
                                 CookingStation.ItemConversion fconv = new CookingStation.ItemConversion();
-                                fconv.m_to = togo.GetComponent<ItemDrop>();
-                                fconv.m_from = fromgo.GetComponent<ItemDrop>();
+                                fconv.m_to = to;
+                                fconv.m_from = from;
                                 fconv.m_cookTime = conv.cookTime;
                                 cookConvs.Add(fconv);
                             }
+                            tconv.updatedCookingConversions = cookConvs;
                         }
-                        tconv.updatedCookingConversions = cookConvs;
                         if (cov.Value.overCookedTime > 0) { tconv.overCookedTime = cov.Value.overCookedTime; }
                         tconv.maxFuel = NonNegative(cov.Key, "maxFuel", cov.Value.maxFuel);
                         if (cov.Value.secPerFuel.HasValue) {
@@ -319,29 +351,25 @@ namespace RecipeManager
                         break;
                     case ConversionType.Smelter:
                         Logger.LogDebug("Setting Smelter");
-                        List<Smelter.ItemConversion> smeltConvs = new List<Smelter.ItemConversion>();
-                        if (cov.Value.conversions != null && cov.Value.conversions.Count > 0) {
+                        if (cov.Value.conversions != null) {
+                            List<Smelter.ItemConversion> smeltConvs = new List<Smelter.ItemConversion>();
                             foreach (var conv in cov.Value.conversions) {
-                                Logger.LogDebug($"Creating Conversion {conv.fromPrefab} to {conv.toPrefab}");
-                                GetConversionGOs(conv, out GameObject togo, out GameObject fromgo);
-                                if (togo == null || fromgo == null) { continue; }
+                                if (ResolveConversion(cov.Key, conv, false, out ItemDrop from, out ItemDrop to) == false) { continue; }
                                 Smelter.ItemConversion fconv = new Smelter.ItemConversion();
-                                fconv.m_to = togo.GetComponent<ItemDrop>();
-                                fconv.m_from = fromgo.GetComponent<ItemDrop>();
+                                fconv.m_to = to;
+                                fconv.m_from = from;
                                 smeltConvs.Add(fconv);
                             }
+                            tconv.updatedSmelterConversions = smeltConvs;
                         }
-                        tconv.updatedSmelterConversions = smeltConvs;
                         tconv.conversionTime = SmelterConversionTime(cov.Key, cov.Value.conversionTime);
                         // Zero is allowed for these: the game treats maxFuel 0 as needing no fuel, and
                         // fuelPerProduct 0 as never burning the fuel that is loaded
                         tconv.fuelPerProduct = NonNegative(cov.Key, "fuelPerProduct", cov.Value.fuelPerProduct);
                         tconv.maxFuel = NonNegative(cov.Key, "maxFuel", cov.Value.maxFuel);
                         tconv.maxOres = NonNegative(cov.Key, "maxOres", cov.Value.maxOres);
-                        if (tconv.maxOres == 0) {
-                            Logger.LogWarning($"{cov.Key} sets maxOres to 0, the station will not accept any items to convert.");
-                        }
                         tconv.fuelItem = ResolveFuelItem(cov.Key, cov.Value.fuelItem);
+                        if (tconv.action != ConversionAction.Remove) { CheckSmelterSetup(cov.Key, tconv); }
                         break;
                 }
                 if (valid == false) {
@@ -351,17 +379,83 @@ namespace RecipeManager
                 TrackedConversions.Add(tconv);
             }
 
-            static void GetConversionGOs(ConversionDef conv, out GameObject togo, out GameObject fromgo)
+            // Smelters are the one station that works with a side left out: the battering ram burns wood and
+            // makes nothing, and the frost kiln makes frozen fuel from its fuel alone. Fermenters and cooking
+            // stations read both sides without checking, so for those a missing side skips the conversion.
+            static bool ResolveConversion(string entry, ConversionDef conv, bool needsBothSides, out ItemDrop from, out ItemDrop to)
             {
-                fromgo = PrefabManager.Instance.GetPrefab(conv.fromPrefab);
-                togo = PrefabManager.Instance.GetPrefab(conv.toPrefab);
-                if (fromgo == null)
-                {
-                    Logger.LogWarning($"Conversion could not find {conv.fromPrefab}, this conversion will be skipped.");
+                from = null;
+                to = null;
+                if (conv == null) { return false; }
+                Logger.LogDebug($"Creating Conversion {conv.fromPrefab} to {conv.toPrefab}");
+                bool noFrom = string.IsNullOrEmpty(conv.fromPrefab);
+                bool noTo = string.IsNullOrEmpty(conv.toPrefab);
+                if (noFrom && noTo) {
+                    Logger.LogWarning($"{entry} has a conversion with neither a fromPrefab nor a toPrefab, it will be skipped.");
+                    return false;
                 }
-                if (togo == null)
-                {
-                    Logger.LogWarning($"Conversion could not find {conv.toPrefab}, this conversion will be skipped.");
+                if (needsBothSides && (noFrom || noTo)) {
+                    Logger.LogWarning($"{entry} has a conversion with no {(noFrom ? "fromPrefab" : "toPrefab")}, only smelter type stations can leave one out. This conversion will be skipped.");
+                    return false;
+                }
+                bool fromFound = ResolveItem(entry, conv.fromPrefab, out from);
+                bool toFound = ResolveItem(entry, conv.toPrefab, out to);
+                return fromFound && toFound;
+            }
+
+            // A name left out resolves to no item, which is a valid smelter conversion side. A name that does
+            // not resolve to an item is a mistake, and skips the conversion rather than silently becoming an
+            // empty side. PrefabManager.GetPrefab throws on a null name, so it is never asked for one.
+            static bool ResolveItem(string entry, string prefabName, out ItemDrop item)
+            {
+                item = null;
+                if (string.IsNullOrEmpty(prefabName)) { return true; }
+                GameObject go = PrefabManager.Instance.GetPrefab(prefabName);
+                item = go != null ? go.GetComponent<ItemDrop>() : null;
+                if (item == null) {
+                    Logger.LogWarning($"{entry} has a conversion using {prefabName}, which {(go == null ? "could not be found" : "is not an item")}. This conversion will be skipped.");
+                    return false;
+                }
+                return true;
+            }
+
+            // A smelter only takes items while maxOres is above 0, and only needs fuel while maxFuel is. The
+            // frost kiln has nowhere to load items and the battering ram nowhere to load fuel, so turning
+            // either on leaves them waiting forever. A conversion with no fromPrefab is only used while the
+            // station takes no items, it is then made from fuel alone (Smelter.GetItemConversion).
+            static void CheckSmelterSetup(string entry, TrackedConversion tconv)
+            {
+                Smelter station = tconv.smelterComponent;
+                string name = tconv.prefab.name;
+                // Add only changes the conversion list, the station keeps its own limits
+                bool modify = tconv.action == ConversionAction.Modify;
+                int maxOres = (modify ? tconv.maxOres : null) ?? station.m_maxOre;
+                int maxFuel = (modify ? tconv.maxFuel : null) ?? station.m_maxFuel;
+                if (maxOres > 0 && station.m_addOreSwitch == null) {
+                    Logger.LogWarning($"{entry} leaves {name} with maxOres {maxOres}, but it has nowhere to load items. It will never produce anything unless maxOres is 0.");
+                }
+                if (maxFuel > 0 && station.m_addWoodSwitch == null) {
+                    Logger.LogWarning($"{entry} leaves {name} with maxFuel {maxFuel}, but it has nowhere to load fuel. It will never produce anything unless maxFuel is 0.");
+                }
+
+                List<Smelter.ItemConversion> supplied = tconv.updatedSmelterConversions;
+                if (maxOres > 0) {
+                    // The game's item menu reads the fromPrefab of every conversion and throws on a missing one
+                    int skipped = supplied == null ? 0 : supplied.RemoveAll(c => c.m_from == null);
+                    if (skipped > 0) {
+                        Logger.LogWarning($"{entry} gives {name} {skipped} conversion(s) with no fromPrefab, but it takes items (maxOres {maxOres}). Those only work with maxOres 0 and have been skipped.");
+                    }
+                    return;
+                }
+
+                // What the station ends up with, an Add keeps the station's own conversions in front
+                List<Smelter.ItemConversion> result = modify && supplied != null ? supplied : new List<Smelter.ItemConversion>(station.m_conversion ?? new List<Smelter.ItemConversion>());
+                if (modify == false) { AddEntries(result, supplied, SameConversion); }
+                if (result.Any(c => c != null && c.m_from != null)) {
+                    Logger.LogWarning($"{entry} leaves {name} with maxOres 0, so it takes no items and its conversions with a fromPrefab will never run.");
+                }
+                if (result.Count(c => c != null && c.m_from == null) > 1) {
+                    Logger.LogWarning($"{entry} leaves {name} with more than one conversion without a fromPrefab, only the first of them is ever produced.");
                 }
             }
 
@@ -437,7 +531,7 @@ namespace RecipeManager
             {
                 ConversionSnapshot snapshot = new ConversionSnapshot { gameObject = go };
 
-                Smelter smelt = go.GetComponent<Smelter>();
+                Smelter smelt = FindStation<Smelter>(go);
                 if (smelt != null) {
                     snapshot.hasSmelter = true;
                     snapshot.smelterConversions = Copy(smelt.m_conversion);
@@ -448,14 +542,14 @@ namespace RecipeManager
                     snapshot.smelterMaxFuel = smelt.m_maxFuel;
                 }
 
-                Fermenter ferment = go.GetComponent<Fermenter>();
+                Fermenter ferment = FindStation<Fermenter>(go);
                 if (ferment != null) {
                     snapshot.hasFermenter = true;
                     snapshot.fermenterConversions = Copy(ferment.m_conversion);
                     snapshot.fermentationDuration = ferment.m_fermentationDuration;
                 }
 
-                CookingStation cook = go.GetComponent<CookingStation>();
+                CookingStation cook = FindStation<CookingStation>(go);
                 if (cook != null) {
                     snapshot.hasCookingStation = true;
                     snapshot.cookingConversions = Copy(cook.m_conversion);
@@ -481,7 +575,7 @@ namespace RecipeManager
                 if (gameObject == null) { return false; }
 
                 if (hasSmelter) {
-                    Smelter smelt = gameObject.GetComponent<Smelter>();
+                    Smelter smelt = FindStation<Smelter>(gameObject);
                     if (smelt != null) {
                         smelt.m_conversion = Copy(smelterConversions);
                         smelt.m_fuelItem = smelterFuelItem;
@@ -493,7 +587,7 @@ namespace RecipeManager
                 }
 
                 if (hasFermenter) {
-                    Fermenter ferment = gameObject.GetComponent<Fermenter>();
+                    Fermenter ferment = FindStation<Fermenter>(gameObject);
                     if (ferment != null) {
                         ferment.m_conversion = Copy(fermenterConversions);
                         ferment.m_fermentationDuration = fermentationDuration;
@@ -501,7 +595,7 @@ namespace RecipeManager
                 }
 
                 if (hasCookingStation) {
-                    CookingStation cook = gameObject.GetComponent<CookingStation>();
+                    CookingStation cook = FindStation<CookingStation>(gameObject);
                     if (cook != null) {
                         cook.m_conversion = Copy(cookingConversions);
                         cook.m_fuelItem = cookingFuelItem;

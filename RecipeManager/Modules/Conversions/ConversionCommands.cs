@@ -29,15 +29,16 @@ namespace RecipeManager
             String ExistingConversions = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllConversionsDebug.yaml");
             ConversionModificationCollection ConversionCollection = new ConversionModificationCollection();
 
-            List<Smelter> smelterConversions = Resources.FindObjectsOfTypeAll<Smelter>().Where(pc => pc.name.EndsWith("(Clone)") != true && Regex.IsMatch(pc.name.Trim(), @"\(\d+\)") != true).ToList<Smelter>();
-            List<Fermenter> fermenterConversions = Resources.FindObjectsOfTypeAll<Fermenter>().Where(pc => pc.name.EndsWith("(Clone)") != true && Regex.IsMatch(pc.name.Trim(), @"\(\d+\)") != true).ToList<Fermenter>();
-            List<CookingStation> cookingConversions = Resources.FindObjectsOfTypeAll<CookingStation>().Where(pc => pc.name.EndsWith("(Clone)") != true && Regex.IsMatch(pc.name.Trim(), @"\(\d+\)") != true).ToList<CookingStation>();
+            List<Smelter> smelterConversions = Resources.FindObjectsOfTypeAll<Smelter>().Where(pc => IsPrefab(pc)).ToList<Smelter>();
+            List<Fermenter> fermenterConversions = Resources.FindObjectsOfTypeAll<Fermenter>().Where(pc => IsPrefab(pc)).ToList<Fermenter>();
+            List<CookingStation> cookingConversions = Resources.FindObjectsOfTypeAll<CookingStation>().Where(pc => IsPrefab(pc)).ToList<CookingStation>();
 
             foreach (var smelter in smelterConversions) {
-                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Smelter definition {smelter.gameObject.name}"); }
+                string prefabName = PrefabName(smelter);
+                if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Smelter definition {prefabName}"); }
                 ConversionModification convMod = new ConversionModification();
-                Logger.LogInfo($"Set name {smelter.gameObject.name}");
-                convMod.prefab = smelter.gameObject.name;
+                Logger.LogInfo($"Set name {prefabName}");
+                convMod.prefab = prefabName;
                 convMod.action = ConversionAction.Modify;
                 Logger.LogInfo($"Set fuelPerProduct {smelter.m_fuelPerProduct}");
                 convMod.fuelPerProduct = smelter.m_fuelPerProduct;
@@ -72,13 +73,13 @@ namespace RecipeManager
                 
                 convMod.conversions = conversions;
                 Logger.LogInfo($"Added.");
-                ConversionCollection.ConversionModifications.Add(smelter.gameObject.name, convMod);
+                ConversionCollection.ConversionModifications.Add(prefabName, convMod);
             }
 
             foreach (var fermenter in fermenterConversions) {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Fermenter definition {fermenter.m_name}"); }
                 ConversionModification convMod = new ConversionModification();
-                convMod.prefab = fermenter.gameObject.name;
+                convMod.prefab = PrefabName(fermenter);
                 convMod.action = ConversionAction.Modify;
                 convMod.conversionTime = fermenter.m_fermentationDuration;
                 //convMod.requiresFuel = false;
@@ -92,13 +93,13 @@ namespace RecipeManager
                     conversions.Add(convDef);
                 }
                 convMod.conversions = conversions;
-                ConversionCollection.ConversionModifications.Add(fermenter.gameObject.name, convMod);
+                ConversionCollection.ConversionModifications.Add(convMod.prefab, convMod);
             }
 
             foreach (var cookingStation in cookingConversions) {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Cooking Station definition {cookingStation.m_name}"); }
                 ConversionModification convMod = new ConversionModification();
-                convMod.prefab = cookingStation.gameObject.name;
+                convMod.prefab = PrefabName(cookingStation);
                 convMod.action = ConversionAction.Modify;
                 //convMod.requiresFuel = cookingStation.m_useFuel;
                 if (cookingStation.m_fuelItem != null) {
@@ -121,14 +122,31 @@ namespace RecipeManager
                     conversions.Add(convDef);
                 }
                 convMod.conversions = conversions;
-                ConversionCollection.ConversionModifications.Add(cookingStation.gameObject.name, convMod);
+                ConversionCollection.ConversionModifications.Add(convMod.prefab, convMod);
             }
 
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing conversions."); }
             var yaml = ValConfig.yamlserializer.Serialize(ConversionCollection);
             using (StreamWriter writetext = new StreamWriter(ExistingConversions)) {
                 writetext.WriteLine(yaml);
-            }   
+            }
+        }
+
+        /// <summary>
+        /// The prefab a station belongs to, which is what a conversion config has to name. The battering
+        /// ram keeps its Smelter on a child object, so the component's own object name is not always it.
+        /// </summary>
+        private static string PrefabName(Component station)
+        {
+            ZNetView nview = station.GetComponentInParent<ZNetView>(true);
+            return (nview != null ? nview.gameObject : station.gameObject).name;
+        }
+
+        /// <summary>Skips the copies placed in the world, only the prefabs themselves are printed.</summary>
+        private static bool IsPrefab(Component station)
+        {
+            string name = PrefabName(station);
+            return name.EndsWith("(Clone)") != true && Regex.IsMatch(name.Trim(), @"\(\d+\)") != true;
         }
     }
 
