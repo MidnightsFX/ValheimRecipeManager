@@ -139,6 +139,23 @@ namespace RecipeManager.Common
 #         - prefab: TrollHide
 #           craftCost: 4
 #           upgradeCost: 2
+#         - prefab: Upgrader1Armor         # <- The idol the Forge of Potential takes to upgrade this armor
+#           craftCost: 1                   # <- For an upgrader resource this is what every upgrade costs
+#           upgraderResource: true         # <- Only paid at the Forge of Potential, every other station ignores it.
+#                                          #    Leave the idol out of a Modify and the recipe keeps the one it had.
+#
+# Optional fields. Left out of a Modify, each one keeps the value the recipe already had, an Add starts from the
+# game's defaults. The exception is enabled: left out, Modify and Add switch the recipe on.
+# RM_Recipes_PrintAll writes them out wherever a recipe differs from the defaults.
+#     enabled: false                       # <- Keeps the recipe switched off
+#     upgradeOnly: true                    # <- Only listed in a station's upgrade tab, never the craft tab. The Deep North gold gear uses this
+#     listSortWeight: 100                  # <- Position in the crafting list, lower comes first. The game uses 100, fishing bait 500 and up
+#     qualityResultAmountMultiplier: 3     # <- With anyOneResource, how much each quality level of the ingredient used adds
+#     recipe:
+#       ingredients:
+#         - prefab: TrollHide
+#           recover: true                  # <- Whether part of this is refunded when the Forge of Potential breaks the item
+#           anyOneExtraAmount: 1           # <- With anyOneResource, extra items crafted when this is the ingredient used
 ";
 
                     writetext.WriteLine(header);
@@ -258,6 +275,8 @@ namespace RecipeManager.Common
 #       - prefab: Honey
 #         craftCost: 2
 #         upgradeCost: 0
+#       # Ingredients also take upgraderResource, recover and anyOneExtraAmount, see Recipes.yaml. A cloned weapon
+#       # or armor needs an upgraderResource idol (Upgrader0Weapon..Upgrader7Armor) to be upgradeable at the Forge of Potential.
 #
 # ---------------------------------------------------------------------------
 # Weapon, armor and set stats. These work the same on an added item and on one you are modifying.
@@ -662,6 +681,10 @@ namespace RecipeManager.Common
 
         public static void SendUpdatedRecipeConfigs() {
             RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
+        }
+
+        public static void SendUpdatedConversionConfigs() {
+            ConversionConfigRPC.SendPackage(ZNet.instance.m_peers, SendConversionConfigs());
         }
 
         private static RecipeModificationCollection ReadAllRecipeConfigs()

@@ -1,3 +1,25 @@
+ **0.6.5**
+---
+```
+- Fixes modifying an armor or weapon recipe taking the item off the Forge of Potential and adding its idol to the
+  crafting cost. The idol is now marked upgraderResource: true, and RM_Recipes_PrintAll writes it that way.
+  A Modify that leaves the idol out keeps the one the recipe had, and older configs that list it as a plain
+  ingredient are recognised from the recipe they modify.
+- Fixes modifying a Deep North gold item making it craftable at its station. Recipes can now set upgradeOnly,
+  and a Modify keeps the recipe's own value when it is left out.
+- Fixes a modified recipe losing its place in the crafting list (fishing bait). Recipes can now set listSortWeight.
+- Recipes can now set qualityResultAmountMultiplier, and ingredients recover and anyOneExtraAmount. A Modify keeps
+  the recipe's own values when they are left out, so a modified item that breaks at the Forge of Potential refunds
+  its ingredients like the game's own recipes do.
+- Item recipes in Items.yaml take the same ingredient fields, so a cloned weapon or armor can be given an idol and
+  be upgraded at the Forge of Potential
+- RM_Recipes_PrintAll writes recipes the game ships switched off with action: Disable and enabled: false, so a
+  copied entry stays off. Every entry now has its action written out, Disable was previously left out.
+- Fixes undoing an Enable or Disable (RM_Recipes_Unapply, RM_Recipes_Reload, editing the file) leaving the recipe
+  in the wrong state. Undoing an Enable switched the recipe off, it now goes back to how it started.
+- RM_Conversion_Reload now sends the reloaded conversions to connected players, like the other reload commands
+```
+
  **0.6.4**
 ---
 ```

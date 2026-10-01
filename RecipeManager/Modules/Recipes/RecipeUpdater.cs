@@ -14,6 +14,7 @@ namespace RecipeManager {
     internal class RecipeUpdater {
         public static Dictionary<String,RecipeModification> RecipesToModify = new Dictionary<String, RecipeModification>();
         public static List<TrackedRecipe> TrackedRecipes = new List<TrackedRecipe>();
+        private static readonly Dictionary<Recipe, bool> EnabledWhenFirstSeen = new Dictionary<Recipe, bool>();
 
         public static void SecondaryRecipeSync() {
             // Guard against doing any recipe modifications if there are no recipes to modify
@@ -96,7 +97,7 @@ namespace RecipeManager {
                     String resources = "";
                     foreach (Piece.Requirement res in tracked_recipe.updatedRecipe.m_resources ?? new Piece.Requirement[0])
                     {
-                        resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}";
+                        resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}{(res.m_upgraderResource ? ",upgrader" : "")}";
                     }
                     Logger.LogInfo($"Applying Updated Recipe: {tracked_recipe.updatedRecipe.name}\n" +
                     $"amount:{tracked_recipe.updatedRecipe.m_amount}\n" +
@@ -104,6 +105,8 @@ namespace RecipeManager {
                     $"craftingStation:{tracked_recipe.updatedRecipe.m_craftingStation}\n" +
                     $"reqStationLevel:{tracked_recipe.updatedRecipe.m_minStationLevel}\n" +
                     $"reqOneIngrediant:{tracked_recipe.updatedRecipe.m_requireOnlyOneIngredient}\n" +
+                    $"upgradeOnly:{tracked_recipe.updatedRecipe.m_noCraftOnlyUpgrade}\n" +
+                    $"listSortWeight:{tracked_recipe.updatedRecipe.m_listSortWeight}\n" +
                     $"resources:{resources}");
                 }
                 if (tracked_recipe.originalRecipe != null)
@@ -111,7 +114,7 @@ namespace RecipeManager {
                     String resources = "";
                     foreach (Piece.Requirement res in tracked_recipe.originalRecipe.m_resources ?? new Piece.Requirement[0])
                     {
-                        resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}";
+                        resources += $" {res.m_resItem},{res.m_amount},{res.m_amountPerLevel}{(res.m_upgraderResource ? ",upgrader" : "")}";
                     }
                     Logger.LogInfo($"Targeting Original Recipe: {tracked_recipe.originalRecipe.name}\n" +
                     $"amount:{tracked_recipe.originalRecipe.m_amount}\n" +
@@ -120,6 +123,8 @@ namespace RecipeManager {
                     $"craftingStation:{tracked_recipe.originalRecipe.m_craftingStation}\n" +
                     $"reqStationLevel:{tracked_recipe.originalRecipe.m_minStationLevel}\n" +
                     $"reqOneIngrediant:{tracked_recipe.originalRecipe.m_requireOnlyOneIngredient}\n" +
+                    $"upgradeOnly:{tracked_recipe.originalRecipe.m_noCraftOnlyUpgrade}\n" +
+                    $"listSortWeight:{tracked_recipe.originalRecipe.m_listSortWeight}\n" +
                     $"resources:{resources}");
                 }
             }
@@ -188,7 +193,8 @@ namespace RecipeManager {
             if (tracked_recipe.action == DataObjects.Action.Disable)
             {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Reverting disable for {tracked_recipe.prefab} recipe"); }
-                update_applied = EnableRecipe(tracked_recipe.originalRecipe);
+                // Back to how the recipe started, which is not always on. RM_Recipes_PrintAll writes the recipes the game ships off as Disable.
+                update_applied = tracked_recipe.originalEnabled ? EnableRecipe(tracked_recipe.originalRecipe) : DisableRecipe(tracked_recipe.originalRecipe);
             }
 
             // Delete Action
@@ -216,7 +222,7 @@ namespace RecipeManager {
             // Enable Action
             if (tracked_recipe.action == DataObjects.Action.Enable)
             {
-                update_applied = DisableRecipe(tracked_recipe.originalRecipe);
+                update_applied = tracked_recipe.originalEnabled ? EnableRecipe(tracked_recipe.originalRecipe) : DisableRecipe(tracked_recipe.originalRecipe);
             }
 
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"{tracked_recipe.prefab} recipe modification reverted? {update_applied}"); }
@@ -275,6 +281,12 @@ namespace RecipeManager {
                 if (index > -1)
                 {
                     tRecipeDetails.originalRecipe = ObjectDB.instance.m_recipes[index];
+                    // Disable and Enable write to the recipe asset itself, which outlives the object DB. Read the state
+                    // the first time the recipe is seen, a later world load would read back our own change.
+                    if (!EnabledWhenFirstSeen.ContainsKey(tRecipeDetails.originalRecipe)) {
+                        EnabledWhenFirstSeen[tRecipeDetails.originalRecipe] = tRecipeDetails.originalRecipe.m_enabled;
+                    }
+                    tRecipeDetails.originalEnabled = EnabledWhenFirstSeen[tRecipeDetails.originalRecipe];
                 } else
                 {
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogWarning($"Could not find recipe for: {recipeMod.Value.prefab}"); }
@@ -284,7 +296,9 @@ namespace RecipeManager {
                 {
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Found custom recipe modifications, building out definition."); }
                     
-                    RequirementConfig[] cing_recipe = new RequirementConfig[0];
+                    List<RequirementConfig> requirementConfigs = new List<RequirementConfig>();
+                    // Kept in step with requirementConfigs, the requirements built from them come back in the same order
+                    List<Ingrediant> requirementSources = new List<Ingrediant>();
                     if (recipeMod.Value.recipe.noRecipeCost == false) {
                         if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Setting recipe cost requirements."); }
 
@@ -292,17 +306,22 @@ namespace RecipeManager {
                             Logger.LogWarning($"{recipeMod.Key} has a recipe with no ingredients. Set noRecipeCost to true if the recipe is meant to be free, otherwise add ingredients. This modification will be skipped.");
                             continue;
                         }
-                        cing_recipe = new RequirementConfig[recipeMod.Value.recipe.ingredients.Count];
-                        int i_index = 0;
                         foreach (Ingrediant ingr in recipeMod.Value.recipe.ingredients)
                         {
-                            cing_recipe[i_index] = new RequirementConfig { Item = ingr.prefab, Amount = ingr.craftCost, AmountPerLevel = ingr.upgradeCost, Recover = false };
-                            i_index++;
+                            RequirementConfig requirement = new RequirementConfig { Item = ingr.prefab, Amount = ingr.craftCost, AmountPerLevel = ingr.upgradeCost };
+                            // RecipeConfig drops a requirement that costs nothing, which would put the two lists out of step
+                            if (!requirement.IsValid()) { continue; }
+                            requirementConfigs.Add(requirement);
+                            requirementSources.Add(ingr);
                         }
                     }
                     if (recipeMod.Value.repairAt == null) {
                         recipeMod.Value.repairAt = recipeMod.Value.craftedAt;
                     }
+
+                    // Only a Modify has a recipe to copy the values it leaves out from, an added recipe is new
+                    Recipe modifiedRecipe = recipeMod.Value.action == DataObjects.Action.Modify ? tRecipeDetails.originalRecipe : null;
+                    RecipeFields.RecipeSettings? modifiedSettings = modifiedRecipe != null ? RecipeFields.RecipeSettings.From(modifiedRecipe) : (RecipeFields.RecipeSettings?)null;
 
                     CustomRecipe updatedCustomRecipe = new CustomRecipe(new RecipeConfig()
                     {
@@ -311,12 +330,13 @@ namespace RecipeManager {
                         CraftingStation = recipeMod.Value.craftedAt,
                         RepairStation = recipeMod.Value.repairAt,
                         MinStationLevel = recipeMod.Value.minStationLevel,
-                        Enabled = recipeMod.Value.action == DataObjects.Action.Disable ? false : true,
                         RequireOnlyOneIngredient = recipeMod.Value.recipe.anyOneResource,
-                        Requirements = cing_recipe
+                        Requirements = requirementConfigs.ToArray()
                     });
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Built new custom recipe."); }
                     Recipe nRecipe = updatedCustomRecipe.Recipe;
+                    // Enabled, upgrade only, sort weight and the quality multiplier, which RecipeConfig cannot all carry
+                    RecipeFields.Resolve(recipeMod.Value, modifiedSettings).ApplyTo(nRecipe);
                     CustomItem targetPrefab = ItemManager.Instance.GetItem(recipeMod.Value.prefab);
                     if (targetPrefab != null)
                     {
@@ -392,6 +412,12 @@ namespace RecipeManager {
                     // Reject all entries that do not have resolved references
                     // nRecipe.m_resources.Where(val => val.m_resItem.GetType() == typeof(ItemDrop)).ToArray();
 
+                    int builtRequirements = nRecipe.m_resources.Length;
+                    nRecipe.m_resources = RecipeFields.ApplyRequirements(nRecipe.m_resources, requirementSources, modifiedRecipe?.m_resources, RequirementItemName);
+                    if (ValConfig.EnableDebugMode.Value && nRecipe.m_resources.Length > builtRequirements) {
+                        Logger.LogInfo($"{recipeMod.Key} lists no upgrader resource, keeping the Forge of Potential cost of the recipe it modifies.");
+                    }
+
                     tRecipeDetails.updatedRecipe = nRecipe;
                     tRecipeDetails.updatedCustomRecipe = updatedCustomRecipe;
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Set updated recipe and updatedCustomRecipe."); }
@@ -399,6 +425,11 @@ namespace RecipeManager {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Adding tracked Recipe"); }
                 TrackedRecipes.Add(tRecipeDetails);
             }
+        }
+
+        private static string RequirementItemName(Piece.Requirement requirement)
+        {
+            return requirement.m_resItem != null ? requirement.m_resItem.name : null;
         }
 
         public static int RecipeIndexForPrefab(string prefab)

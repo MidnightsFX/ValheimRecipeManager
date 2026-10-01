@@ -165,7 +165,7 @@ namespace RecipeManager
             ValConfig.ReloadConversionFiles();
             ConversionUpdater.BuildConversionTracker();
             ConversionUpdater.ConversionUpdateRunner();
-            // ValConfig.SendUpdatedPieceConfigs();
+            ValConfig.SendUpdatedConversionConfigs();
         }
     }
 }

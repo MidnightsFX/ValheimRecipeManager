@@ -73,7 +73,9 @@ namespace RecipeManager
                     recipe_as_mod.recipeName = recipe.name;
                     recipe_as_mod.minStationLevel = (short)recipe.m_minStationLevel;
                     recipe_as_mod.craftAmount = (short)recipe.m_amount;
-                    recipe_as_mod.action = DataObjects.Action.Enable;
+                    // Mirrors the recipe's state, so an entry copied out unchanged leaves the recipe as it is
+                    recipe_as_mod.action = recipe.m_enabled ? DataObjects.Action.Enable : DataObjects.Action.Disable;
+                    RecipeFields.Capture(RecipeFields.RecipeSettings.From(recipe), recipe_as_mod);
 
                     // null checks needed on all child object accessors due to some oddly formed recipes
                     if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Checking for empty referenced objects"); }
@@ -105,6 +107,8 @@ namespace RecipeManager
                                 res_req.craftCost = (short)req.m_amount;
                                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Setting upgrade cost"); }
                                 res_req.upgradeCost = (short)req.m_amountPerLevel;
+                                // Without these the Forge of Potential idol reads as an ordinary ingredient
+                                RecipeFields.Capture(req, res_req);
                                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Setting prefab name"); }
                                 if (req.m_resItem != null) { res_req.prefab = req.m_resItem.name; }
                                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Adding to ingrediants list"); }

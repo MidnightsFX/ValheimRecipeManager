@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using UnityEngine;
+using YamlDotNet.Serialization;
 using static Piece;
 
 namespace RecipeManager.Common
@@ -166,6 +167,8 @@ namespace RecipeManager.Common
             public string prefab { get; set; }
             public string recipeName { get; set; }
             public Recipe originalRecipe { get; set; }
+            // Whether originalRecipe was switched on before this mod touched it, the game ships some recipes off
+            public bool originalEnabled { get; set; }
             public Recipe updatedRecipe { get; set; }
             public CustomRecipe updatedCustomRecipe { get; set; }
             public CustomRecipe originalCustomRecipe { get; set; }
@@ -180,6 +183,8 @@ namespace RecipeManager.Common
         [DataContract]
         public class RecipeModification
         {
+            // Always written. Disable is the enum's default, so it would otherwise be left out of the dump
+            [YamlMember(DefaultValuesHandling = DefaultValuesHandling.Preserve)]
             public Action action { get; set; }
             public string prefab { get; set; }
             public string recipeName { get; set; }
@@ -187,6 +192,17 @@ namespace RecipeManager.Common
             public string repairAt { get; set; }
             public short minStationLevel { get; set; } = 1;
             public short craftAmount { get; set; } = 1;
+            // The fields below are nullable so that leaving one out keeps whatever the recipe being modified
+            // already has, and an added recipe starts from the game's defaults. Entries written before these
+            // fields existed rely on that. See RecipeFields for how each one is resolved.
+            /// <summary>False keeps the recipe switched off. Left out, Modify and Add switch the recipe on.</summary>
+            public bool? enabled { get; set; }
+            /// <summary>Only listed in a station's upgrade tab, never its craft tab. The game's Deep North gold gear uses this.</summary>
+            public bool? upgradeOnly { get; set; }
+            /// <summary>Lower sorts first in the crafting list. The game uses 100, and 500 and up for fishing bait.</summary>
+            public int? listSortWeight { get; set; }
+            /// <summary>With anyOneResource, how much each quality level of the ingredient used adds, as a multiple of craftAmount.</summary>
+            public float? qualityResultAmountMultiplier { get; set; }
             public SimpleRecipe recipe { get; set; }
         }
 
@@ -205,6 +221,17 @@ namespace RecipeManager.Common
             public string prefab { get; set; }
             public short craftCost { get; set; }
             public short upgradeCost { get; set; }
+            // Nullable like RecipeModification's optional fields. Left out, a Modify copies the value from the
+            // modified recipe's requirement for the same prefab.
+            /// <summary>
+            /// Only paid at an upgrader station (the Forge of Potential), every other station ignores it. This is
+            /// how the idols are attached to armor and weapons. craftCost is what each upgrade costs.
+            /// </summary>
+            public bool? upgraderResource { get; set; }
+            /// <summary>Whether part of this ingredient is refunded when the Forge of Potential breaks the item.</summary>
+            public bool? recover { get; set; }
+            /// <summary>With anyOneResource, how many extra items are crafted when this is the ingredient used.</summary>
+            public int? anyOneExtraAmount { get; set; }
         }
 
         public enum ItemAction

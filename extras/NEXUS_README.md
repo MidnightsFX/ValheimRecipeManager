@@ -23,11 +23,65 @@ Pieces are almost anything that is placed. Everything built with the hammer, pla
 [*]Dump any prefab's icons and textures to disk so you can repaint them[/*]
 [/list]
 
-Recipes can be manipulated and added through yaml. All of the existing recipes can also be dumped to a file, in the same format to help you find and understand existing recipes.
+
+[size=4][b]Console commands[/b][/size]
+Each part of the mod has commands to write what is in the game out to a file, and to apply your changes without restarting. They are described in the section they belong to:
+
+[list]
+[*]Recipes: RM_Recipes_PrintAll, RM_Recipes_Reload, RM_Recipes_Unapply[/*]
+[*]Pieces: RM_Pieces_PrintAll, RM_Pieces_Reload[/*]
+[*]Conversions: RM_Conversion_PrintAll, RM_Conversion_Reload[/*]
+[*]Items: RM_Items_PrintAll, RM_Items_Reload, RM_Textures_Dump[/*]
+[/list]
+
+The PrintAll commands write to \BepInEx\config\RecipeManager\. Those files are never loaded, they are there for you to copy entries out of.
+
+Commands require [url=https://valheim.fandom.com/wiki/Developer_console]enabling the in-game console[/url] and running devcommands first. Valheim only treats devcommands as enabled on the instance that hosts the world, so run them in a solo game or on the machine hosting, not from a client connected to someone else's server.
+
+If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add --console
+
+It is not recommended to use Vortex mod manager, however using vortex hardlink or copy deployments you can launch from steam using BepinEx with a --console launch parameter. To do so right click on the game in your library, manage, general, at the bottom add --console to the launch options.
+
+
+[size=4][b]Config files[/b][/size]
+
+Every config file lives in \BepInEx\config\RecipeManager\. Saving one while the game is running applies it straight away, and the Reload commands do the same on demand. A file added while the game is running is only picked up after a restart.
 
 Its recommended to use a syntax highlighting yaml editor when modifying recipes to help ensure that your yaml is valid. [url=https://yamlchecker.com/]yamlChecker[/url] is a free online linter you can use to validate also.
 
+All files which contain Recipes.yaml in \BepInEx\config\RecipeManager\ will be considered recipe files (except ObjectDBRecipes.yaml).
+For example this means that:
+
+[list]
+[*]Forge_Recipes.yaml is valid[/*]
+[*]SoupStationStuff.yaml is not valid and will not be loaded but SoupStationStuffRecipes.yaml is.[/*]
+[/list]
+
+All files which contain Pieces.yaml in \BepInEx\config\RecipeManager\ will be considered piece modifications and loaded.
+For example this means that:
+
+[list]
+[*]CultivatorPieces.yaml is valid[/*]
+[*]Cultivator.yaml is not valid and will not be loaded[/*]
+[/list]
+
+All files which contain Conversions.yaml in \BepInEx\config\RecipeManager\ will be considered conversion modifications and loaded.
+
+All files which contain Items.yaml in \BepInEx\config\RecipeManager\ will be considered item configs and loaded (except ObjectDBItems.yaml).
+For example this means that:
+
+[list]
+[*]Food_Items.yaml is valid[/*]
+[*]Food.yaml is not valid and will not be loaded[/*]
+[/list]
+
+
+[size=4][b]Recipes[/b][/size]
+
+Recipes can be manipulated and added through yaml. All of the existing recipes can also be dumped to a file, in the same format to help you find and understand existing recipes.
+
 Recipe modifications are stored at \BepInEx\config\RecipeManager\Recipes.yaml. This file will be generated on the first run if it does not already exist.
+R2modman or Thunderstore mod manager will also detect this file as an editable config file and it can be edited or opened directly from the "Edit Config" menu, search for Recipes.yaml.
 
 [b]Yaml configuration example:[/b]
 [code]
@@ -67,71 +121,40 @@ recipeModifications:                     # <- This is the top level key, all mod
         - prefab: TrollHide
           craftCost: 4
           upgradeCost: 2
+        - prefab: Upgrader1Armor         # <- The idol the Forge of Potential takes to upgrade this armor
+          craftCost: 1                   # <- For an upgrader resource this is what every upgrade costs
+          upgraderResource: true         # <- Only paid at the Forge of Potential, every other station ignores it.
+                                         #    Leave the idol out of a Modify and the recipe keeps the one it had.
+[/code]
+
+[b]Optional recipe fields:[/b]
+Left out of a Modify, each of these keeps the value the recipe already had, and an Add starts from the game's defaults. The exception is enabled: left out, Modify and Add switch the recipe on. RM_Recipes_PrintAll writes them out wherever a recipe differs from the defaults, so copying an entry out of the dump keeps them.
+[code]
+    enabled: false                       # <- Keeps the recipe switched off
+    upgradeOnly: true                    # <- Only listed in a station's upgrade tab, never the craft tab. The Deep North gold gear uses this
+    listSortWeight: 100                  # <- Position in the crafting list, lower comes first. The game uses 100, fishing bait 500 and up
+    qualityResultAmountMultiplier: 3     # <- With anyOneResource, how much each quality level of the ingredient used adds
+    recipe:
+      ingredients:
+        - prefab: TrollHide
+          upgraderResource: false        # <- true for the Forge of Potential idol, see the example above
+          recover: true                  # <- Whether part of this is refunded when the Forge of Potential breaks the item
+          anyOneExtraAmount: 1           # <- With anyOneResource, extra items crafted when this is the ingredient used
 [/code]
 
 
-[size=4][b]Commands[/b][/size]
-This mod adds two new commands which can be used to speed up recipe modification.
+[size=3][b]Recipe commands[/b][/size]
 
-RM_Recipes_Reload - This reloads all recipe modifications that are found.
+RM_Recipes_PrintAll - Writes every recipe in the object DB, including your modifications, to ObjectDBRecipes.yaml. To edit a recipe, copy its entry into Recipes.yaml and change its action to Modify.
 
-RM_Recipes_PrintAll - This prints all recipes currently stored in the object DB (including modifications), this file is ignored.
+RM_Recipes_Reload - Puts every recipe back the way it was, reads the recipe files again and applies them. The result is sent to connected players.
 
-RM_Pieces_Reload - This reloads all piece modifications that are found.
-
-RM_Pieces_PrintAll - This prints all pieces to a debug file (including modifications), this file is ignored.
-
-RM_Conversion_Reload - This reloads all conversion modifications that are found.
-
-RM_Conversion_PrintAll - This prints all conversions to a debug file, this file is ignored.
-
-RM_Items_Reload - This reloads item additions and modifications. Stats, names, icons and textures are re-applied straight away; adding or removing an item needs a restart.
-
-RM_Items_PrintAll - This prints the items in the object DB, with the stats they currently have, to a reference file, this file is ignored. RM_Items_PrintAll &lt;text&gt; only prints the items whose prefab name contains &lt;text&gt;.
-
-RM_Textures_Dump &lt;prefabName&gt; - This dumps a prefab's icons and material textures to \BepInEx\config\RecipeManager\Textures\&lt;prefabName&gt;\ as PNGs.
-
-Commands require [url=https://valheim.fandom.com/wiki/Developer_console]enabling the in-game console[/url] and running devcommands first. Valheim only treats devcommands as enabled on the instance that hosts the world, so run them in a solo game or on the machine hosting, not from a client connected to someone else's server.
-
-If you are using Thunderstore Mod Manager or R2 Modmanager, you can enabled the console by selecting your valheim profile, going to settings (on the far left), debugging tab, set launch parameters and add --console
-
-It is not recommended to use Vortex mod manager, however using vortex hardlink or copy deployments you can launch from steam using BepinEx with a --console launch parameter. To do so right click on the game in your library, manage, general, at the bottom add --console to the launch options.
+RM_Recipes_Unapply - Puts every modified recipe back the way it was without reading the files again, which is handy for comparing against the originals. It only changes the instance it is run on, and lasts until the next RM_Recipes_Reload, recipe file change or world load.
 
 
-[size=4][b]Multiple Config files[/b][/size]
+[size=3][b]Recipe examples[/b][/size]
 
-All files which contain Recipes.yaml in \BepInEx\config\RecipeManager\ will be considered recipe files (except ObjectDBRecipes.yaml).
-For example this means that:
-
-[list]
-[*]Forge_Recipes.yaml is valid[/*]
-[*]SoupStationStuff.yaml is not valid and will not be loaded but SoupStationStuffRecipes.yaml is.[/*]
-[/list]
-
-All files which contain Pieces.yaml in \BepInEx\config\RecipeManager\ will be considered piece modifications and loaded.
-For example this means that:
-
-[list]
-[*]CultivatorPieces.yaml is valid[/*]
-[*]Cultivator.yaml is not valid and will not be loaded[/*]
-[/list]
-
-All files which contain Items.yaml in \BepInEx\config\RecipeManager\ will be considered item configs and loaded (except ObjectDBItems.yaml).
-For example this means that:
-
-[list]
-[*]Food_Items.yaml is valid[/*]
-[*]Food.yaml is not valid and will not be loaded[/*]
-[/list]
-
-
-[size=4][b]Recipe Examples[/b][/size]
-
-The mod ships with a default example recipe file which will provide you similar explanations to what is listed above. You can find the recipe file after starting up your game with the mod installed in you BepInEx\config\RecipeManager folder.
-
-R2modman or Thunderstore mod manager will also detect this file as an editable config file and it can be edited or opened directly from the "Edit Config" menu, search for Recipes.yaml.
-
-The only file that is will be used to load recipes is Recipes.yaml other yaml files in that directory will not be loaded.
+The mod ships with a default example recipe file which will provide you similar explanations to what is listed above. You can find the recipe file after starting up your game with the mod installed in your BepInEx\config\RecipeManager folder.
 
 Add a craftable chain (replace [url=https://thunderstore.io/c/valheim/p/Digitalroot/Chain_Manager/]Chain-Manager[/url])
 [code]
@@ -212,7 +235,17 @@ recipeModifications:
 [/code]
 
 
-[size=4][b]Piece Examples[/b][/size]
+[size=4][b]Pieces[/b][/size]
+
+Piece modifications are stored at \BepInEx\config\RecipeManager\Pieces.yaml. This file will be generated on the first run, with an explanation of every field, if it does not already exist.
+
+[size=3][b]Piece commands[/b][/size]
+
+RM_Pieces_PrintAll - Writes every piece in the game, including your modifications, to AllPiecesDebug.yaml, in the same format as Pieces.yaml.
+
+RM_Pieces_Reload - Puts every piece back the way it was, reads the piece files again and applies them. The result is sent to connected players.
+
+[size=3][b]Piece examples[/b][/size]
 
 Enables all of the holiday building pieces
 [code]
@@ -265,7 +298,17 @@ pieceModifications:
 [/code]
 
 
-[size=4][b]Conversion Examples[/b][/size]
+[size=4][b]Conversions[/b][/size]
+
+Conversion modifications are stored at \BepInEx\config\RecipeManager\Conversions.yaml. This file will be generated on the first run if it does not already exist.
+
+[size=3][b]Conversion commands[/b][/size]
+
+RM_Conversion_PrintAll - Writes the conversions of every smelter type station, fermenter and cooking station, including your modifications, to AllConversionsDebug.yaml, in the same format as Conversions.yaml.
+
+RM_Conversion_Reload - Puts every station back the way it was, reads the conversion files again and applies them. The result is sent to connected players.
+
+[size=3][b]Conversion examples[/b][/size]
 
 Any field left out of a conversion modification keeps the station's own value, conversions included. A few values need care:
 [list]
@@ -547,6 +590,14 @@ conversionModifications:
 
 Adding or removing an item needs a game restart (or a trip back to the main menu). This is a hard requirement of how Valheim identifies items on the network, not something the mod can work around. Everything else, including every modification of an existing item, works live with RM_Items_Reload.
 
+[size=3][b]Item commands[/b][/size]
+
+RM_Items_PrintAll - Writes the items in the object DB, with the stats they currently have, to ObjectDBItems.yaml. Copy an entry out of it to see what the numbers should look like. It is a big file, so RM_Items_PrintAll sword only writes the items whose prefab name contains "sword" (upper or lower case).
+
+RM_Items_Reload - Reads the item files again. Stats, names, icons and textures are re-applied straight away, and the item definitions are sent to connected players. Adding or removing an item needs a restart.
+
+RM_Textures_Dump &lt;prefabName&gt; - Writes a prefab's icons and material textures to \BepInEx\config\RecipeManager\Textures\&lt;prefabName&gt;\ as PNGs, along with a _dump_info.txt describing each file. Prefab names are case sensitive. See Custom icons and textures below for what to do with them.
+
 [size=3][b]Adding a new item[/b][/size]
 
 Add a "Honey bread" food, made from bread and honey at the cauldron
@@ -586,7 +637,7 @@ itemAdditions:
         upgradeCost: 0
 [/code]
 
-Run RM_Items_PrintAll to dump the items in the game with their real stat values. That file is never loaded, it is there so you can copy an entry and see what the numbers should look like. It is a big file, so RM_Items_PrintAll sword will only dump the items whose prefab name contains "sword".
+Item recipe ingredients also take upgraderResource, recover and anyOneExtraAmount, see the optional recipe fields. A cloned weapon or armor needs an upgraderResource idol (Upgrader0Weapon..Upgrader7Armor) to be upgradeable at the Forge of Potential.
 
 New items are visible to the rest of the mod by their prefab name, so you can also refer to them from Recipes.yaml or Conversions.yaml.
 
@@ -679,7 +730,7 @@ setBonus: the armor set the item belongs to.
 
 Status effects are referenced by name and have to already exist, this mod cannot create new ones. SetEffect_TrollArmor, Burning and Frost are examples of names that work. To empty a status effect slot rather than set one, use the value None.
 
-[size=4][b]Custom icons and textures[/b][/size]
+[size=3][b]Custom icons and textures[/b][/size]
 
 Icons and textures are read from \BepInEx\config\RecipeManager\Textures\&lt;prefab&gt;\ where &lt;prefab&gt; is the prefab value of your new item. Any file that is present replaces that texture, and anything missing keeps whatever the cloned item had.
 
@@ -705,7 +756,9 @@ On a server, item definitions are synced to clients but the PNGs are not. A clie
 [size=4][b]FAQ[/b][/size]
 [list]
 [*][b]Q:[/b] Why is my recipe not showing up?
-[b]A:[/b] Ensure that the recipe uses the action 'Modify' or 'Add', by default recipes dumped from the object DB will not, they will use Enable. Which if the recipe already exists and is not disabled, does nothing.[/*]
+[b]A:[/b] Ensure that the recipe uses the action 'Modify' or 'Add', by default recipes dumped from the object DB will not. They use Enable, which does nothing to a recipe that is already switched on, or Disable for a recipe the game ships switched off.[/*]
+[*][b]Q:[/b] I edited an armor or weapon recipe and the idol became part of the crafting cost, or the item disappeared from the Forge of Potential
+[b]A:[/b] Update to 0.6.5 or later. The idol (Upgrader1Armor and the like) is an upgrader resource, which only the Forge of Potential charges and which is what puts the item on the Forge. Entries written by older versions are recognised automatically, and a fresh RM_Recipes_PrintAll marks the idol with upgraderResource: true. The same update keeps the Deep North gold gear upgrade-only and keeps fishing bait in its place in the crafting list.[/*]
 [*][b]Q:[/b] My yaml has an error about the refund key
 [b]A:[/b] The refund key was removed in 0.4.1. If you need to remove the key from an existing yaml you can use the following regex ( +refund: \w+\n?) and replace with nothing. This can be done from most text editors find and replace.[/*]
 [*][b]Q:[/b] My new item has the same food bar as the item I cloned it from

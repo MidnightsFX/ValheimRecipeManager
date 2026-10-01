@@ -459,6 +459,8 @@ namespace RecipeManager
         {
             ItemRecipe source = def.recipe;
             List<RequirementConfig> requirements = new List<RequirementConfig>();
+            // Kept in step with requirements, the requirements built from them come back in the same order
+            List<Ingrediant> requirementSources = new List<Ingrediant>();
             foreach (Ingrediant ingredient in source.ingredients)
             {
                 if (ingredient == null || string.IsNullOrEmpty(ingredient.prefab))
@@ -466,13 +468,16 @@ namespace RecipeManager
                     Logger.LogWarning($"Recipe for '{modificationName}' has an ingredient with no prefab set, it will be ignored.");
                     continue;
                 }
-                requirements.Add(new RequirementConfig
+                RequirementConfig requirement = new RequirementConfig
                 {
                     Item = ingredient.prefab,
                     Amount = ingredient.craftCost,
-                    AmountPerLevel = ingredient.upgradeCost,
-                    Recover = false
-                });
+                    AmountPerLevel = ingredient.upgradeCost
+                };
+                // RecipeConfig drops a requirement that costs nothing, which would put the two lists out of step
+                if (!requirement.IsValid()) { continue; }
+                requirements.Add(requirement);
+                requirementSources.Add(ingredient);
             }
 
             RecipeConfig config = new RecipeConfig
@@ -488,7 +493,13 @@ namespace RecipeManager
                 Requirements = requirements.ToArray()
             };
 
-            return new CustomRecipe(config);
+            CustomRecipe recipe = new CustomRecipe(config);
+            if (recipe.Recipe != null)
+            {
+                // A new item has no recipe of its own to copy from, so unset fields take the game's defaults
+                recipe.Recipe.m_resources = RecipeFields.ApplyRequirements(recipe.Recipe.m_resources, requirementSources, null, null);
+            }
+            return recipe;
         }
 
         /// <summary>
