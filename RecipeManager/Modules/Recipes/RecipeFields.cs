@@ -6,16 +6,17 @@ using static RecipeManager.Common.DataObjects;
 namespace RecipeManager
 {
     /// <summary>
-    /// The Recipe and Piece.Requirement fields that Jotunn's RecipeConfig and RequirementConfig cannot carry.
-    /// A recipe rebuilt through those configs gets the game's defaults for all of them. That is how a modified
-    /// armor or weapon lost its Forge of Potential idol, and how the Deep North gold gear became craftable.
+    /// The Recipe and Piece.Requirement fields that Jotunn's RecipeConfig and RequirementConfig cannot carry, and
+    /// that item recipes are still built through. A recipe built that way gets the game's defaults for all of
+    /// them. That is how a modified armor or weapon lost its Forge of Potential idol, and how the Deep North gold
+    /// gear became craftable.
     ///
     /// Reading and writing a Recipe's own fields is all this does with the game. Item names are passed in, so it
     /// never needs the Unity runtime and can be run outside the game.
     /// </summary>
     internal static class RecipeFields
     {
-        // Recipe's own field initialisers, which is what a recipe built from a RecipeConfig starts with
+        // Recipe's own field initialisers, which is what a new recipe starts with
         internal const int DefaultListSortWeight = 100;
         internal const float DefaultQualityResultAmountMultiplier = 1f;
 
@@ -84,8 +85,8 @@ namespace RecipeManager
         }
 
         /// <summary>
-        /// Sets the fields RequirementConfig cannot on each built requirement, then makes sure a modified recipe that
-        /// could be upgraded at the Forge of Potential still can be.
+        /// Sets the upgrader, recover and extra amount fields on each built requirement, then makes sure a modified
+        /// recipe that could be upgraded at the Forge of Potential still can be.
         /// </summary>
         /// <param name="built">Built from <paramref name="ingredients"/>, one requirement per ingredient and in the same order.</param>
         /// <param name="modified">The requirements of the recipe a Modify replaces, null when adding a recipe.</param>
@@ -124,7 +125,7 @@ namespace RecipeManager
             return !upgraderResource;
         }
 
-        private static Piece.Requirement FindRequirement(Piece.Requirement[] requirements, string prefab, Func<Piece.Requirement, string> itemName)
+        internal static Piece.Requirement FindRequirement(Piece.Requirement[] requirements, string prefab, Func<Piece.Requirement, string> itemName)
         {
             if (requirements == null || prefab == null) { return null; }
             foreach (Piece.Requirement requirement in requirements)

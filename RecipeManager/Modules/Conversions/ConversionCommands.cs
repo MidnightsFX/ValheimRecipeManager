@@ -1,13 +1,10 @@
-﻿using Jotunn.Configs;
-using Jotunn.Entities;
+﻿using Jotunn.Entities;
 using RecipeManager.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using UnityEngine;
 using static RecipeManager.Common.DataObjects;
 using Logger = RecipeManager.Common.Logger;
@@ -16,6 +13,8 @@ namespace RecipeManager
 {
     internal class ConversionPrintCommand : ConsoleCommand
     {
+        internal const string DumpFileName = "AllConversionsDebug.yaml";
+
         public override string Name => "RM_Conversion_PrintAll";
 
         public override string Help => "Prints all conversions.";
@@ -26,120 +25,127 @@ namespace RecipeManager
         public override void Run(string[] args)
         {
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo("Starting to dump conversion list"); }
-            String ExistingConversions = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", "AllConversionsDebug.yaml");
+            String ExistingConversions = Path.Combine(BepInEx.Paths.ConfigPath, "RecipeManager", DumpFileName);
             ConversionModificationCollection ConversionCollection = new ConversionModificationCollection();
 
             List<Smelter> smelterConversions = Resources.FindObjectsOfTypeAll<Smelter>().Where(pc => IsPrefab(pc)).ToList<Smelter>();
             List<Fermenter> fermenterConversions = Resources.FindObjectsOfTypeAll<Fermenter>().Where(pc => IsPrefab(pc)).ToList<Fermenter>();
             List<CookingStation> cookingConversions = Resources.FindObjectsOfTypeAll<CookingStation>().Where(pc => IsPrefab(pc)).ToList<CookingStation>();
+            List<Incinerator> incinerators = Resources.FindObjectsOfTypeAll<Incinerator>().Where(pc => IsPrefab(pc)).ToList<Incinerator>();
 
             foreach (var smelter in smelterConversions) {
                 string prefabName = PrefabName(smelter);
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Smelter definition {prefabName}"); }
-                ConversionModification convMod = new ConversionModification();
-                Logger.LogInfo($"Set name {prefabName}");
-                convMod.prefab = prefabName;
-                convMod.action = ConversionAction.Modify;
-                Logger.LogInfo($"Set fuelPerProduct {smelter.m_fuelPerProduct}");
-                convMod.fuelPerProduct = smelter.m_fuelPerProduct;
-                Logger.LogInfo($"Set maxFuel {smelter.m_maxFuel}");
-                convMod.maxFuel = smelter.m_maxFuel;
-                Logger.LogInfo($"Set maxOres {smelter.m_maxOre}");
-                convMod.maxOres = smelter.m_maxOre;
-                if (smelter.m_fuelItem != null) {
-                    Logger.LogInfo($"Set fuelItem {smelter.m_fuelItem.gameObject.name}");
-                    convMod.fuelItem = smelter.m_fuelItem.gameObject.name;
+                ConversionModification convMod = new ConversionModification
+                {
+                    prefab = prefabName,
+                    action = ConversionAction.Modify,
+                    fuelPerProduct = smelter.m_fuelPerProduct,
+                    maxFuel = smelter.m_maxFuel,
+                    maxOres = smelter.m_maxOre,
+                    fuelItem = ItemName(smelter.m_fuelItem),
+                    conversionTime = smelter.m_secPerProduct,
+                    spawnStack = smelter.m_spawnStack,
+                    requiresRoof = smelter.m_requiresRoof,
+                    conversions = new List<ConversionDef>()
+                };
+                foreach (Smelter.ItemConversion conversion in smelter.m_conversion ?? new List<Smelter.ItemConversion>()) {
+                    if (conversion == null) { continue; }
+                    convMod.conversions.Add(new ConversionDef { fromPrefab = ItemName(conversion.m_from), toPrefab = ItemName(conversion.m_to) });
                 }
-                Logger.LogInfo($"Set requiresFuel {smelter.m_fuelItem != null}");
-                //convMod.requiresFuel = smelter.m_fuelItem != null;
-                Logger.LogInfo($"Set conversionTime {smelter.m_secPerProduct}");
-                convMod.conversionTime = smelter.m_secPerProduct;
-                List <ConversionDef> conversions = new List<ConversionDef>();
-                if (smelter.m_conversion != null && smelter.m_conversion.Count > 0) {
-                    foreach (Smelter.ItemConversion conversion in smelter.m_conversion) {
-                        if (conversion == null) { continue; }
-                        ConversionDef convDef = new ConversionDef();
-                        if (conversion.m_from != null) {
-                            convDef.fromPrefab = conversion.m_from.gameObject.name;
-                            Logger.LogInfo($"Convert From: {conversion.m_from.gameObject.name}");
-                        }
-                        if (conversion.m_to != null) {
-                            convDef.toPrefab = conversion.m_to.gameObject.name;
-                            Logger.LogInfo($"Convert To: {conversion.m_to.gameObject.name}");
-                        }
-                        conversions.Add(convDef);
-                    }
-                }
-                
-                convMod.conversions = conversions;
-                Logger.LogInfo($"Added.");
-                ConversionCollection.ConversionModifications.Add(prefabName, convMod);
+                AddDefinition(ConversionCollection, convMod);
             }
 
             foreach (var fermenter in fermenterConversions) {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Fermenter definition {fermenter.m_name}"); }
-                ConversionModification convMod = new ConversionModification();
-                convMod.prefab = PrefabName(fermenter);
-                convMod.action = ConversionAction.Modify;
-                convMod.conversionTime = fermenter.m_fermentationDuration;
-                //convMod.requiresFuel = false;
-                List<ConversionDef> conversions = new List<ConversionDef>();
-                foreach (Fermenter.ItemConversion conversion in fermenter.m_conversion) {
+                ConversionModification convMod = new ConversionModification
+                {
+                    prefab = PrefabName(fermenter),
+                    action = ConversionAction.Modify,
+                    conversionTime = fermenter.m_fermentationDuration,
+                    conversions = new List<ConversionDef>()
+                };
+                foreach (Fermenter.ItemConversion conversion in fermenter.m_conversion ?? new List<Fermenter.ItemConversion>()) {
                     if (conversion == null) { continue; }
-                    ConversionDef convDef = new ConversionDef();
-                    convDef.fromPrefab = conversion.m_from.name;
-                    convDef.toPrefab = conversion.m_to.name;
-                    convDef.amount = conversion.m_producedItems;
-                    conversions.Add(convDef);
+                    convMod.conversions.Add(new ConversionDef { fromPrefab = ItemName(conversion.m_from), toPrefab = ItemName(conversion.m_to), amount = conversion.m_producedItems });
                 }
-                convMod.conversions = conversions;
-                ConversionCollection.ConversionModifications.Add(convMod.prefab, convMod);
+                AddDefinition(ConversionCollection, convMod);
             }
 
             foreach (var cookingStation in cookingConversions) {
                 if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Building Cooking Station definition {cookingStation.m_name}"); }
-                ConversionModification convMod = new ConversionModification();
-                convMod.prefab = PrefabName(cookingStation);
-                convMod.action = ConversionAction.Modify;
-                //convMod.requiresFuel = cookingStation.m_useFuel;
-                if (cookingStation.m_fuelItem != null) {
-                    convMod.fuelItem = cookingStation.m_fuelItem.name;
-                }
-                if (convMod.overCookedItem != null) {
-                    convMod.overCookedItem = cookingStation.m_overCookedItem.name;
-                }
-                convMod.secPerFuel = cookingStation.m_secPerFuel;
-                convMod.maxFuel = cookingStation.m_maxFuel;
-                //convMod.requiresFuel = cookingStation.m_useFuel;
-                //convMod.requiresFire = cookingStation.m_requireFire;
-                List<ConversionDef> conversions = new List<ConversionDef>();
-                foreach (CookingStation.ItemConversion conversion in cookingStation.m_conversion) {
+                ConversionModification convMod = new ConversionModification
+                {
+                    prefab = PrefabName(cookingStation),
+                    action = ConversionAction.Modify,
+                    fuelItem = ItemName(cookingStation.m_fuelItem),
+                    overCookedItem = ItemName(cookingStation.m_overCookedItem),
+                    secPerFuel = cookingStation.m_secPerFuel,
+                    maxFuel = cookingStation.m_maxFuel,
+                    requiresFire = cookingStation.m_requireFire,
+                    conversions = new List<ConversionDef>()
+                };
+                foreach (CookingStation.ItemConversion conversion in cookingStation.m_conversion ?? new List<CookingStation.ItemConversion>()) {
                     if (conversion == null) { continue; }
-                    ConversionDef convDef = new ConversionDef();
-                    if (conversion.m_from != null) { convDef.fromPrefab = conversion.m_from.name; }
-                    if (conversion.m_to != null) { convDef.toPrefab = conversion.m_to.name; }
-                    convDef.cookTime = conversion.m_cookTime;
-                    conversions.Add(convDef);
+                    convMod.conversions.Add(new ConversionDef { fromPrefab = ItemName(conversion.m_from), toPrefab = ItemName(conversion.m_to), cookTime = conversion.m_cookTime });
                 }
-                convMod.conversions = conversions;
-                ConversionCollection.ConversionModifications.Add(convMod.prefab, convMod);
+                AddDefinition(ConversionCollection, convMod);
+            }
+
+            foreach (Incinerator incinerator in incinerators) {
+                ConversionModification convMod = new ConversionModification
+                {
+                    prefab = PrefabName(incinerator),
+                    action = ConversionAction.Modify,
+                    defaultResult = ItemName(incinerator.m_defaultResult),
+                    defaultCost = incinerator.m_defaultCost,
+                    incineratorConversions = new List<IncineratorConversionDef>()
+                };
+                foreach (Incinerator.IncineratorConversion conversion in incinerator.m_conversions ?? new List<Incinerator.IncineratorConversion>()) {
+                    if (conversion == null) { continue; }
+                    convMod.incineratorConversions.Add(new IncineratorConversionDef {
+                        result = ItemName(conversion.m_result),
+                        resultAmount = conversion.m_resultAmount,
+                        priority = conversion.m_priority,
+                        anyOneIngredient = conversion.m_requireOnlyOneIngredient,
+                        ingredients = (conversion.m_requirements ?? new List<Incinerator.Requirement>())
+                            .Where(requirement => requirement != null && requirement.m_resItem != null)
+                            .Select(requirement => new IncineratorIngredientDef { prefab = ItemName(requirement.m_resItem), amount = requirement.m_amount })
+                            .ToList()
+                    });
+                }
+                AddDefinition(ConversionCollection, convMod);
             }
 
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Serializing and printing conversions."); }
             var yaml = ValConfig.yamlserializer.Serialize(ConversionCollection);
             using (StreamWriter writetext = new StreamWriter(ExistingConversions)) {
+                writetext.WriteLine("# Reference dump of every conversion station, as it currently is.");
+                writetext.WriteLine("# This file is NOT loaded by the mod, copy the entries you want to change into your own Conversions.yaml.");
+                writetext.WriteLine();
                 writetext.WriteLine(yaml);
             }
+            ItemCommandUtils.Respond($"Dumped {ConversionCollection.ConversionModifications.Count} station(s) to {ExistingConversions}");
         }
 
-        /// <summary>
-        /// The prefab a station belongs to, which is what a conversion config has to name. The battering
-        /// ram keeps its Smelter on a child object, so the component's own object name is not always it.
-        /// </summary>
+        private static void AddDefinition(ConversionModificationCollection collection, ConversionModification convMod)
+        {
+            // A prefab with two kinds of station, or a mod's copy sharing the name, is listed once
+            if (collection.ConversionModifications.ContainsKey(convMod.prefab)) {
+                Logger.LogDebug($"{convMod.prefab} was already dumped, skipping its second station.");
+                return;
+            }
+            collection.ConversionModifications.Add(convMod.prefab, convMod);
+        }
+
+        private static string ItemName(ItemDrop item)
+        {
+            return item != null ? item.gameObject.name : null;
+        }
+
         private static string PrefabName(Component station)
         {
-            ZNetView nview = station.GetComponentInParent<ZNetView>(true);
-            return (nview != null ? nview.gameObject : station.gameObject).name;
+            return ConversionUpdater.StationRoot(station).name;
         }
 
         /// <summary>Skips the copies placed in the world, only the prefabs themselves are printed.</summary>
@@ -161,11 +167,7 @@ namespace RecipeManager
 
         public override void Run(string[] args)
         {
-            ConversionUpdater.RevertConversionModifications();
-            ValConfig.ReloadConversionFiles();
-            ConversionUpdater.BuildConversionTracker();
-            ConversionUpdater.ConversionUpdateRunner();
-            ValConfig.SendUpdatedConversionConfigs();
+            ValConfig.Conversions.ReloadFromDisk();
         }
     }
 }

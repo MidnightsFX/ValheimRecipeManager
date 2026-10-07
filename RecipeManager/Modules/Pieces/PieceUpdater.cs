@@ -20,10 +20,46 @@ namespace RecipeManager
         /// as the original.
         /// </summary>
         private static readonly Dictionary<String, PieceSnapshot> OriginalPieces = new Dictionary<String, PieceSnapshot>();
+        /// <summary>The rest of what a piece can have written to it, recorded with <see cref="OriginalPieces"/>.</summary>
+        private static readonly Dictionary<String, FieldSnapshot> OriginalPieceFields = new Dictionary<String, FieldSnapshot>();
+        /// <summary>Icons loaded from the textures folder, read once per session. Null for a piece that has none.</summary>
+        private static readonly Dictionary<String, Sprite> Icons = new Dictionary<String, Sprite>();
 
+        // The Piece fields written besides the ones PieceSnapshot holds. Fields a game version does not have are skipped.
+        private static readonly string[] PieceFields =
+        {
+            "m_icon", "m_usage", "m_groundOnly", "m_allowAltGroundPlacement", "m_waterPiece", "m_noInWater", "m_notOnWood",
+            "m_notOnTiltingSurface", "m_inCeilingOnly", "m_notOnFloor", "m_noClipping", "m_clipGround", "m_clipEverything",
+            "m_onlyInTeleportArea", "m_allowedInDeepSnow", "m_requireDeepSnow", "m_vegetationGroundOnly", "m_canRotate",
+            "m_allowRotatedOverlap", "m_canRockJade", "m_noVines", "m_extraPlacementDistance", "m_blockRadius", "m_blockingPieces"
+        };
+
+        /// <summary>Hooked to every new object DB in a world.</summary>
         public static void InitialSychronization() {
+            // Pieces outlive the world, put back what the previous one's configuration changed first
+            RevertPieceModifications();
             BuildPieceTracker();
             PieceUpdateRunner();
+        }
+
+        /// <summary>Undoes the modifications applied, then tracks and applies the configured ones.</summary>
+        public static void Reapply() {
+            RevertPieceModifications();
+            BuildPieceTracker();
+            PieceUpdateRunner();
+            RefreshBuildMenu();
+        }
+
+        /// <summary>The build menu only reads which pieces are known and in a tool when it is opened, or a station is found.</summary>
+        private static void RefreshBuildMenu() {
+            Player player = Player.m_localPlayer;
+            if (player == null) { return; }
+            try {
+                player.UpdateKnownRecipesList();
+                player.UpdateAvailablePiecesList();
+            } catch (Exception ex) {
+                Logger.LogDebug($"Could not refresh the build menu. Error: {ex.Message}");
+            }
         }
 
         public static void PieceUpdateRunner()
@@ -40,12 +76,13 @@ namespace RecipeManager
                 Logger.LogWarning("A tracked piece was null, this modification will be skipped.");
                 return;
             }
-            Logger.LogDebug($"Applying piece ({piece.prefab}) modification action: {piece.action}");    
+            Logger.LogDebug($"Applying piece ({piece.prefab}) modification action: {piece.action}");
             switch (piece.action) {
                 case PieceAction.Disable:
                     DisablePiece(piece);
                     break;
                 case PieceAction.Modify:
+                case PieceAction.Add:
                     ModifyPiece(piece);
                     break;
                 case PieceAction.Enable:
@@ -64,6 +101,9 @@ namespace RecipeManager
         /// </summary>
         public static void RevertPieceModifications()
         {
+            Patches.PieceStationLevel.Levels.Clear();
+            PieceTables.RevertAll();
+            PieceComponents.RevertAll();
             if (OriginalPieces.Count == 0) { return; }
             Logger.LogInfo($"Reverting {OriginalPieces.Count} piece modifications");
             foreach (KeyValuePair<String, PieceSnapshot> original in OriginalPieces)
@@ -78,6 +118,7 @@ namespace RecipeManager
             // ResolvePiece has already explained why it could not be found
             if (pcomp == null) { return; }
             original.WriteTo(pcomp);
+            if (OriginalPieceFields.TryGetValue(prefabName, out FieldSnapshot fields)) { fields.WriteTo(pcomp); }
             Logger.LogDebug($"Restored the original settings of {prefabName}.");
         }
 
@@ -90,6 +131,7 @@ namespace RecipeManager
             if (String.IsNullOrEmpty(prefabName) || pcomp == null) { return; }
             if (OriginalPieces.ContainsKey(prefabName)) { return; }
             OriginalPieces.Add(prefabName, PieceSnapshot.From(pcomp));
+            OriginalPieceFields.Add(prefabName, FieldSnapshot.Of(pcomp, PieceFields));
         }
 
         /// <summary>
@@ -124,67 +166,96 @@ namespace RecipeManager
         public static void EnablePiece(TrackedPiece piece)
         {
             Logger.LogDebug($"Enabling {piece.prefab}");
-            // Might need to do this for all pieces with the full name
             Piece pcomp = ResolvePiece(piece.prefab);
             if (pcomp == null) { return; }
             CaptureOriginal(piece.prefab, pcomp);
             pcomp.m_enabled = true;
         }
 
+        /// <summary>Writes only what the entry sets, every field it leaves out keeps the piece's current value.</summary>
         private static void ModifyPiece(TrackedPiece piece)
         {
             Logger.LogDebug($"Modifying {piece.prefab}");
-            // Might need to do this for all pieces with the full name, including clones
             Piece pcomp = ResolvePiece(piece.prefab);
+            if (pcomp == null) { return; }
             CaptureOriginal(piece.prefab, pcomp);
-            if (pcomp != null) 
-            {
-                if (piece.updatedRequirements != null)
-                {
-                    pcomp.m_resources = piece.updatedRequirements;
-                }
-                pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation;
-                pcomp.m_allowedInDungeons = piece.AllowedInDungeon;
-                pcomp.m_canBeRemoved = piece.CanBeDeconstructed;
-                pcomp.m_category = piece.PieceCategory;
-                if (piece.ComfortAmount != -1)
-                {
-                    pcomp.m_comfort = piece.ComfortAmount;
-                }
-                if (piece.ComfortGroup != Piece.ComfortGroup.None)
-                {
-                    pcomp.m_comfortGroup = piece.ComfortGroup;
-                }
-                if (piece.CraftingStationConnectionRadius != -1)
-                {
-                    pcomp.m_connectRadius = piece.CraftingStationConnectionRadius;
-                }
-                if (piece.PieceDescription != null)
-                {
-                    pcomp.m_description = piece.PieceDescription;
-                }
-                pcomp.m_enabled = piece.EnablePiece;
+            PieceModification def = piece.definition;
 
-                if (piece.PieceName != null) {
-                    pcomp.m_name = piece.PieceName;
+            if (piece.updatedRequirements != null) { pcomp.m_resources = piece.updatedRequirements; }
+            if (piece.stationSet) { pcomp.m_craftingStation = piece.RequiredToPlaceCraftingStation; }
+            if (piece.category.HasValue) { pcomp.m_category = piece.category.Value; }
+            Set(ref pcomp.m_allowedInDungeons, def.AllowedInDungeon);
+            Set(ref pcomp.m_canBeRemoved, def.CanBeDeconstructed);
+            Set(ref pcomp.m_comfort, def.ComfortAmount);
+            Set(ref pcomp.m_comfortGroup, def.ComfortGroup);
+            Set(ref pcomp.m_connectRadius, def.CraftingStationConnectionRadius);
+            Set(ref pcomp.m_enabled, def.EnablePiece);
+            Set(ref pcomp.m_onlyInBiome, def.OnlyInSelectBiome);
+            Set(ref pcomp.m_isUpgrade, def.IsUpgradeForStation);
+            Set(ref pcomp.m_cultivatedGroundOnly, def.CultivatedGroundOnly);
+            Set(ref pcomp.m_mustBeAboveConnected, def.MustBeAvobeConnectedStation);
+            Set(ref pcomp.m_spaceRequirement, def.SpaceRequired);
+            Set(ref pcomp.m_groundPiece, def.GroundPlacement);
+            if (def.PieceName != null) { pcomp.m_name = def.PieceName; }
+            if (def.PieceDescription != null) { pcomp.m_description = def.PieceDescription; }
+
+            Set(ref pcomp.m_usage, def.usage);
+            Set(ref pcomp.m_groundOnly, def.groundOnly);
+            Set(ref pcomp.m_allowAltGroundPlacement, def.allowAltGroundPlacement);
+            Set(ref pcomp.m_waterPiece, def.waterPiece);
+            Set(ref pcomp.m_noInWater, def.noInWater);
+            Set(ref pcomp.m_notOnWood, def.notOnWood);
+            Set(ref pcomp.m_notOnTiltingSurface, def.notOnTiltingSurface);
+            Set(ref pcomp.m_inCeilingOnly, def.inCeilingOnly);
+            Set(ref pcomp.m_notOnFloor, def.notOnFloor);
+            Set(ref pcomp.m_noClipping, def.noClipping);
+            Set(ref pcomp.m_clipGround, def.clipGround);
+            Set(ref pcomp.m_clipEverything, def.clipEverything);
+            Set(ref pcomp.m_onlyInTeleportArea, def.onlyInTeleportArea);
+            Set(ref pcomp.m_allowedInDeepSnow, def.allowedInDeepSnow);
+            Set(ref pcomp.m_requireDeepSnow, def.requireDeepSnow);
+            Set(ref pcomp.m_vegetationGroundOnly, def.vegetationGroundOnly);
+            Set(ref pcomp.m_canRotate, def.canRotate);
+            Set(ref pcomp.m_allowRotatedOverlap, def.allowRotatedOverlap);
+            Set(ref pcomp.m_canRockJade, def.canRockJade);
+            Set(ref pcomp.m_noVines, def.noVines);
+            Set(ref pcomp.m_extraPlacementDistance, def.extraPlacementDistance);
+            Set(ref pcomp.m_blockRadius, def.blockRadius);
+            if (piece.blockingPieces != null) { pcomp.m_blockingPieces = new List<Piece>(piece.blockingPieces); }
+            Sprite icon = LoadIcon(piece.prefab);
+            if (icon != null) { pcomp.m_icon = icon; }
+            if (def.minStationLevel.HasValue) { Patches.PieceStationLevel.Levels[pcomp] = def.minStationLevel.Value; }
+
+            if (!string.IsNullOrEmpty(def.pieceTable))
+            {
+                PieceTable table = PieceTables.Find(def.pieceTable);
+                if (table == null) {
+                    Logger.LogWarning($"Piece modification '{piece.key}' sets pieceTable to {def.pieceTable}, which is not a tool that builds pieces. The piece stays where it is. Use the tool's prefab name, such as Hammer, Hoe or Cultivator.");
+                } else {
+                    PieceTables.MoveTo(piece.key, pcomp.gameObject, table);
                 }
-                pcomp.m_onlyInBiome = piece.OnlyInBiome;
-                pcomp.m_isUpgrade = piece.IsUpgradeForStation;
-                pcomp.m_cultivatedGroundOnly = piece.CultivatedGroundOnly;
-                pcomp.m_mustBeAboveConnected = piece.MustBeAvobeConnectedStation;
-                if (piece.SpaceRequired != -1)
-                {
-                    pcomp.m_spaceRequirement = piece.SpaceRequired;
-                }
-                pcomp.m_groundPiece = piece.GroundPlacement;
-                // pcomp
             }
+            PieceComponents.Apply(piece.key, pcomp.gameObject, def, piece);
+        }
+
+        /// <summary>A piece's icon from the textures folder, null when it has none.</summary>
+        internal static Sprite LoadIcon(string prefabName)
+        {
+            if (Icons.TryGetValue(prefabName, out Sprite icon)) { return icon; }
+            Sprite[] loaded = TextureTools.LoadIcons(prefabName, null);
+            icon = loaded != null && loaded.Length > 0 ? loaded[0] : null;
+            Icons[prefabName] = icon;
+            return icon;
+        }
+
+        private static void Set<T>(ref T field, T? configured) where T : struct
+        {
+            if (configured.HasValue) { field = configured.Value; }
         }
 
         private static void DisablePiece(TrackedPiece piece)
         {
             Logger.LogDebug($"Disabling {piece.prefab}");
-            // Might need to do this for all pieces with the full name
             Piece pcomp = ResolvePiece(piece.prefab);
             if (pcomp == null) { return; }
             CaptureOriginal(piece.prefab, pcomp);
@@ -196,85 +267,171 @@ namespace RecipeManager
             TrackedPieces.Clear();
             foreach (KeyValuePair<string, PieceModification> piece in PiecesToModify)
             {
-                if (piece.Key == null) {  continue; }
-                Logger.LogInfo($"Constructing piece modification for {piece.Key}");
-                TrackedPiece tpiece = new TrackedPiece();
-                tpiece.action = piece.Value.action;
-                tpiece.prefab = piece.Value.prefab;
+                if (piece.Key == null || piece.Value == null) {  continue; }
+                Logger.LogDebug($"Constructing piece modification for {piece.Key}");
+                PieceModification def = piece.Value;
+                TrackedPiece tpiece = new TrackedPiece { key = piece.Key, action = def.action, prefab = def.prefab, definition = def };
 
-                Piece tpc = ResolvePiece(piece.Value.prefab);
+                if (def.action == PieceAction.Add && !string.IsNullOrEmpty(def.prefab) && !PieceCreator.Created.Contains(def.prefab)) {
+                    // A piece that already exists was reported when it could not be added
+                    if (PrefabManager.Instance.GetPrefab(def.prefab) == null) {
+                        Logger.LogWarning($"Piece modification '{piece.Key}' adds {def.prefab}, which this game does not have. Added pieces are made at the main menu from this machine's own files, so it needs the entry there too, and a restart or a trip to the main menu.");
+                    }
+                    continue;
+                }
+
+                Piece tpc = ResolvePiece(def.prefab);
                 if (tpc == null) {
                     // ResolvePiece already explained why, just move on to the next entry
                     continue;
                 }
 
-                if (piece.Value.action == PieceAction.Enable || piece.Value.action == PieceAction.Disable) {
+                if (def.action == PieceAction.Enable || def.action == PieceAction.Disable) {
                     // We don't need to add any recipes or lookup details about things if we are just enabling or disabling the piece
                     TrackedPieces.Add(tpiece);
                     continue;
                 }
 
-                // No requirements block means the build cost is not being changed, leave it alone
-                if (piece.Value.requirements == null) {
-                    tpiece.updatedRequirements = null;
-                } else {
-                    List<Piece.Requirement> updatedreq = new List<Piece.Requirement>();
-                    foreach(var req in piece.Value.requirements)
-                    {
-                        if (req == null || string.IsNullOrEmpty(req.Prefab)) {
-                            Logger.LogWarning($"A requirement on {piece.Key} has no prefab set, it will be ignored.");
-                            continue;
-                        }
-                        GameObject rgo = PrefabManager.Instance.GetPrefab(req.Prefab);
-                        ItemDrop tid = rgo == null ? null : rgo.GetComponent<ItemDrop>();
-                        if (tid == null) {
-                            Logger.LogWarning($"Could not find an itemDrop for resource with name: {req.Prefab}, this requirement will be ignored.");
-                            continue;
-                        }
-                        updatedreq.Add(new Piece.Requirement() { m_amount = req.amount, m_resItem = tid, m_recover = req.recover });
-                        Logger.LogDebug($"Building requirement with res:{tid.name} amount:{req.amount}");
-                    }
-                    tpiece.updatedRequirements = updatedreq.ToArray();
+                // Left out keeps the cost, an empty list makes the piece free
+                if (def.requirements != null) {
+                    tpiece.updatedRequirements = BuildRequirements(piece.Key, def.requirements, OriginalResources(def.prefab, tpc));
                 }
 
-                if (piece.Value.RequiredToPlaceCraftingStation != null && piece.Value.RequiredToPlaceCraftingStation != "")
-                {
-                    if (piece.Value.RequiredToPlaceCraftingStation.ToLower() == "none") {
-                        tpiece.RequiredToPlaceCraftingStation = null;
+                string station = def.RequiredToPlaceCraftingStation;
+                if (StationRef.IsNone(station)) {
+                    tpiece.stationSet = true;
+                    tpiece.RequiredToPlaceCraftingStation = null;
+                } else if (!string.IsNullOrEmpty(station)) {
+                    CraftingStation craftStation = StationRef.Resolve(station);
+                    if (craftStation != null) {
+                        tpiece.stationSet = true;
+                        tpiece.RequiredToPlaceCraftingStation = craftStation;
                     } else {
-                        CraftingStation craftStation = PrefabManager.Instance.GetPrefab(piece.Value.RequiredToPlaceCraftingStation)?.GetComponent<CraftingStation>();
-                        if (craftStation != null) {
-                            tpiece.RequiredToPlaceCraftingStation = craftStation;
-                        }  else {
-                            Logger.LogWarning($"Could not link required crafting station, are you sure a crafting station exists with piecename: {piece.Value.RequiredToPlaceCraftingStation}");
-                        }
+                        Logger.LogWarning($"Piece modification '{piece.Key}' sets requiredToPlaceCraftingStation to {station}, which is not a crafting station. The piece keeps the station it has. Use the station's prefab name, such as piece_workbench, or none.");
                     }
-                } else {
-                    // If we do not have the crafting station set, it should be set to its current- this ensures it is not modified but that we support nullifying it
-                    tpiece.RequiredToPlaceCraftingStation = tpc.m_craftingStation;
                 }
 
-                tpiece.IsUpgradeForStation = piece.Value.IsUpgradeForStation;
-                tpiece.AllowedInDungeon = piece.Value.AllowedInDungeon;
-                tpiece.CanBeDeconstructed = piece.Value.CanBeDeconstructed;
-                tpiece.ComfortAmount = piece.Value.ComfortAmount;
-                tpiece.ComfortGroup = piece.Value.ComfortGroup;
-                tpiece.CraftingStationConnectionRadius = piece.Value.CraftingStationConnectionRadius;
-                tpiece.PieceDescription = piece.Value.PieceDescription;
-                tpiece.PieceName = piece.Value.PieceName;
-                tpiece.EnablePiece = piece.Value.EnablePiece;
-                tpiece.CultivatedGroundOnly = piece.Value.CultivatedGroundOnly;
-                tpiece.MustBeAvobeConnectedStation = piece.Value.MustBeAvobeConnectedStation;
-                tpiece.SpaceRequired = piece.Value.SpaceRequired;
-                tpiece.GroundPlacement = piece.Value.GroundPlacement;
-                if (piece.Value.PieceCategory != Piece.PieceCategory.All) {
-                    tpiece.PieceCategory = piece.Value.PieceCategory;
-                } else {
-                    tpiece.PieceCategory = tpc.m_category;
+                tpiece.category = ResolveCategory(piece.Key, def.PieceCategory);
+                CraftingStation placedWith = tpiece.stationSet ? tpiece.RequiredToPlaceCraftingStation : tpc.m_craftingStation;
+                if (def.minStationLevel.HasValue && placedWith == null) {
+                    Logger.LogWarning($"Piece modification '{piece.Key}' sets minStationLevel, but {def.prefab} needs no crafting station to be placed, so it has no effect. Set requiredToPlaceCraftingStation as well.");
+                }
+                if (def.blockingPieces != null) { tpiece.blockingPieces = ResolveBlockingPieces(piece.Key, def.blockingPieces); }
+                string extensionStation = def.stationExtension?.station;
+                if (!string.IsNullOrEmpty(extensionStation)) {
+                    tpiece.extensionStation = StationRef.IsNone(extensionStation) ? null : StationRef.Resolve(extensionStation);
+                    if (tpiece.extensionStation == null) {
+                        Logger.LogWarning($"Piece modification '{piece.Key}' sets stationExtension station to {extensionStation}, which is not a crafting station. A station upgrade always belongs to one, so it keeps its station.");
+                    }
+                }
+                string fuel = def.fireplace?.fuelItem;
+                if (!string.IsNullOrEmpty(fuel)) {
+                    GameObject fuelPrefab = PrefabManager.Instance.GetPrefab(fuel);
+                    tpiece.fireplaceFuel = fuelPrefab != null ? fuelPrefab.GetComponent<ItemDrop>() : null;
+                    if (tpiece.fireplaceFuel == null) {
+                        Logger.LogWarning($"Piece modification '{piece.Key}' sets fireplace fuelItem to {fuel}, which is not an item. The fire keeps its fuel.");
+                    }
+                }
+                if (def.action == PieceAction.Modify && !string.IsNullOrEmpty(def.clonedFrom)) {
+                    Logger.LogWarning($"Piece modification '{piece.Key}' sets clonedFrom on a Modify, only an Add copies a piece. It is ignored.");
                 }
                 // Finally add the tracked piece modifications
                 TrackedPieces.Add(tpiece);
             }
+            SwitchOffUnconfiguredPieces();
+        }
+
+        /// <summary>
+        /// A piece added this session that the configuration in use no longer adds, such as one this machine adds and a
+        /// server does not, is switched off. Nothing else would know what it is.
+        /// </summary>
+        private static void SwitchOffUnconfiguredPieces() {
+            foreach (string created in PieceCreator.Created) {
+                bool configured = false;
+                foreach (PieceModification def in PiecesToModify.Values) {
+                    if (def != null && def.action == PieceAction.Add && def.prefab == created) { configured = true; break; }
+                }
+                if (configured) { continue; }
+                Piece pcomp = ResolvePiece(created);
+                if (pcomp == null) { continue; }
+                CaptureOriginal(created, pcomp);
+                pcomp.m_enabled = false;
+                Logger.LogWarning($"{created} was added this session but the configuration in use does not add it, so it is switched off. A restart removes it.");
+            }
+        }
+
+        /// <summary>The pieces named, by prefab name. One that is not a piece is left out with a warning.</summary>
+        private static List<Piece> ResolveBlockingPieces(string key, List<string> names)
+        {
+            List<Piece> pieces = new List<Piece>();
+            foreach (string name in names) {
+                if (string.IsNullOrEmpty(name)) { continue; }
+                GameObject go = PrefabManager.Instance.GetPrefab(name);
+                Piece blocking = go != null ? go.GetComponent<Piece>() : null;
+                if (blocking == null) {
+                    Logger.LogWarning($"Piece modification '{key}' lists {name} in blockingPieces, which is not a piece. It is left out.");
+                    continue;
+                }
+                pieces.Add(blocking);
+            }
+            return pieces;
+        }
+
+        private static Piece.Requirement[] BuildRequirements(string key, List<SimpleRequirement> requirements, Piece.Requirement[] original)
+        {
+            List<Piece.Requirement> updatedreq = new List<Piece.Requirement>();
+            foreach (SimpleRequirement req in requirements)
+            {
+                if (req == null || string.IsNullOrEmpty(req.Prefab)) {
+                    Logger.LogWarning($"A requirement on {key} has no prefab set, it will be ignored.");
+                    continue;
+                }
+                GameObject rgo = PrefabManager.Instance.GetPrefab(req.Prefab);
+                ItemDrop tid = rgo == null ? null : rgo.GetComponent<ItemDrop>();
+                if (tid == null) {
+                    Logger.LogWarning($"Could not find an itemDrop for resource with name: {req.Prefab}, this requirement will be ignored.");
+                    continue;
+                }
+                // Left out, the refund setting is the one the piece already has for this item
+                Piece.Requirement same = RecipeFields.FindRequirement(original, req.Prefab, RecipeBuilder.RequirementItemName);
+                bool recover = req.recover ?? same?.m_recover ?? true;
+                updatedreq.Add(new Piece.Requirement() { m_amount = req.amount, m_resItem = tid, m_recover = recover });
+                Logger.LogDebug($"Building requirement with res:{tid.name} amount:{req.amount}");
+            }
+            return updatedreq.ToArray();
+        }
+
+        /// <summary>
+        /// A build tab by name: one of the game's, one another mod added through Jotunn, or a new one by that name. Null
+        /// keeps the piece's own.
+        /// </summary>
+        private static Piece.PieceCategory? ResolveCategory(string key, string configured)
+        {
+            if (string.IsNullOrEmpty(configured)) { return null; }
+            // Earlier versions used All to mean "leave it alone"
+            if (string.Equals(configured, nameof(Piece.PieceCategory.All), StringComparison.OrdinalIgnoreCase)) { return null; }
+            if (string.Equals(configured, nameof(Piece.PieceCategory.Max), StringComparison.OrdinalIgnoreCase)) {
+                Logger.LogWarning($"Piece modification '{key}' sets pieceCategory to {configured}, which is not a build tab. The piece stays in the tab it is in.");
+                return null;
+            }
+            // The game reads a tab number it does not know past the end of its list of tabs
+            if (int.TryParse(configured.Trim(), out _)) {
+                Logger.LogWarning($"Piece modification '{key}' sets pieceCategory to {configured}, a number. Build tabs are named, the piece stays in the tab it is in.");
+                return null;
+            }
+            Piece.PieceCategory? category = PieceManager.Instance.GetPieceCategory(configured);
+            if (category == null) {
+                // A tab of its own, which the build menu lists next to the game's
+                category = PieceManager.Instance.AddPieceCategory(configured);
+                Logger.LogInfo($"Piece modification '{key}' made the build tab {configured}.");
+            }
+            return category;
+        }
+
+        /// <summary>The requirements the piece shipped with, which is what a requirement left partly unset is completed from.</summary>
+        private static Piece.Requirement[] OriginalResources(string prefabName, Piece current)
+        {
+            return OriginalPieces.TryGetValue(prefabName, out PieceSnapshot snapshot) ? snapshot.Resources : current.m_resources;
         }
 
         /// <summary>
@@ -301,6 +458,8 @@ namespace RecipeManager
             private bool mustBeAboveConnected;
             private float spaceRequirement;
             private bool groundPiece;
+
+            public Piece.Requirement[] Resources => resources;
 
             public static PieceSnapshot From(Piece pcomp)
             {
@@ -345,35 +504,6 @@ namespace RecipeManager
                 pcomp.m_mustBeAboveConnected = mustBeAboveConnected;
                 pcomp.m_spaceRequirement = spaceRequirement;
                 pcomp.m_groundPiece = groundPiece;
-            }
-        }
-
-        public static void UpdatePieceModificationsFromList(List<PieceModificationCollection> lPieceMods)
-        {
-            PiecesToModify.Clear();
-            foreach (PieceModificationCollection rcol in lPieceMods)
-            {
-                foreach (KeyValuePair<String, PieceModification> entry in rcol.PieceModifications)
-                {
-                    PiecesToModify.Add(entry.Key, entry.Value);
-                }
-            }
-        }
-
-        public static void UpdatePieceModificationsFromRPC(string rpcRecieved)
-        {
-            Logger.LogInfo($"RPC Recieved: {rpcRecieved}");
-            Logger.LogInfo($"RPC Data: {rpcRecieved.Length}");
-            var pieceData = ValConfig.yamldeserializer.Deserialize<PieceModificationCollection>(rpcRecieved);
-            UpdatePieceModifications(pieceData);
-        }
-
-        public static void UpdatePieceModifications(PieceModificationCollection PieceMods)
-        {
-            PiecesToModify.Clear();
-            foreach (KeyValuePair<String, PieceModification> entry in PieceMods.PieceModifications)
-            {
-                PiecesToModify.Add(entry.Key, entry.Value);
             }
         }
     }

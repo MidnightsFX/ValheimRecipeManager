@@ -8,7 +8,10 @@ using static Piece;
 
 namespace RecipeManager.Common
 {
-    internal class DataObjects
+    // Rule for every config class below: a field that is nullable or a reference type has no initializer. A
+    // left-out value then reads back as null, which is what "keep the current value" is built on, and a value
+    // can never change on its way to a client because the serializer left it out.
+    internal partial class DataObjects
     {
         public enum Action
         {
@@ -23,7 +26,8 @@ namespace RecipeManager.Common
         {
             Disable,
             Modify,
-            Enable
+            Enable,
+            Add
         }
 
         public enum ConversionAction
@@ -37,7 +41,8 @@ namespace RecipeManager.Common
         {
             Fermenter,
             Smelter,
-            CookingStation
+            CookingStation,
+            Incinerator
         }
 
         [DataContract]
@@ -48,34 +53,82 @@ namespace RecipeManager.Common
 
         public class ConversionModification
         {
+            // Always written, Add is the enum's default and would otherwise be left out of dumps and imports
+            [YamlMember(DefaultValuesHandling = DefaultValuesHandling.Preserve)]
             public ConversionAction action { get; set; }
             public string prefab { get; set; }
             public List<ConversionDef> conversions { get; set; }
-            // public ConversionAttributes propertyChanges { get; set; }
             // Nullable so a field left out of the yaml leaves the station alone, while an explicit 0 is
             // still applied. 0 is meaningful to the game: a smelter with maxFuel 0 needs no fuel at all.
             public int? maxOres { get; set; }
             public int? maxFuel { get; set; }
             public int? fuelPerProduct { get; set; }
-            //public bool requiresFuel { get; set; }
-            //public bool requiresFire { get; set; }
             public float? conversionTime { get; set; }
             public string fuelItem { get; set; }
+            /// <summary>What a cooking station turns food into when it is left on too long.</summary>
             public string overCookedItem { get; set; }
+            /// <summary>Matches no setting in the game. Kept so files that set it still load, it is ignored.</summary>
             public float overCookedTime { get; set; }
             public float? secPerFuel { get; set; }
+            /// <summary>Smelters, whether what it makes comes out as one stack instead of one item at a time.</summary>
+            public bool? spawnStack { get; set; }
+            /// <summary>Smelters, whether it only works under a roof.</summary>
+            public bool? requiresRoof { get; set; }
+            /// <summary>Cooking stations, whether it needs a fire under it.</summary>
+            public bool? requiresFire { get; set; }
+            /// <summary>Incinerators, what everything without a conversion of its own turns into.</summary>
+            public string defaultResult { get; set; }
+            /// <summary>Incinerators, how many items make one defaultResult.</summary>
+            public int? defaultCost { get; set; }
+            /// <summary>Incinerators, what particular items turn into.</summary>
+            public List<IncineratorConversionDef> incineratorConversions { get; set; }
+        }
+
+        /// <summary>One thing an incinerator makes, from one or more items.</summary>
+        public class IncineratorConversionDef
+        {
+            /// <summary>What it makes, which also names the conversion for Add and Remove.</summary>
+            public string result { get; set; }
+            /// <summary>How many it makes each time. Left out, it keeps the station's own, or 1.</summary>
+            public int? resultAmount { get; set; }
+            /// <summary>Which conversion goes first when several could be made, highest first.</summary>
+            public int? priority { get; set; }
+            /// <summary>Whether any one of the ingredients is enough, rather than all of them.</summary>
+            public bool? anyOneIngredient { get; set; }
+            /// <summary>Left out of an Add that updates a conversion, it keeps its ingredients.</summary>
+            public List<IncineratorIngredientDef> ingredients { get; set; }
+        }
+
+        public class IncineratorIngredientDef
+        {
+            public string prefab { get; set; }
+            /// <summary>Left out, 1.</summary>
+            public int? amount { get; set; }
         }
 
         public class ConversionDef
         {
             public string fromPrefab { get; set; }
             public string toPrefab { get; set; }
-            public int amount { get; set; }
-            public float cookTime { get; set; } = 0f;
+            /// <summary>Fermenters only, how many items one input makes. Left out, it keeps what the station has for the same input, or the game's 4.</summary>
+            public int? amount { get; set; }
+            /// <summary>Cooking stations only, seconds to cook. Left out, it keeps what the station has for the same input, or the game's 10.</summary>
+            public float? cookTime { get; set; }
+        }
+
+        /// <summary>A configured conversion with its items looked up. A null side is either a smelter conversion with that side empty, or one left out of an Add that updates a conversion the station already has.</summary>
+        public class ResolvedConversion
+        {
+            public ItemDrop from { get; set; }
+            public ItemDrop to { get; set; }
+            public bool toGiven { get; set; }
+            public int? amount { get; set; }
+            public float? cookTime { get; set; }
         }
 
         public class TrackedConversion
         {
+            public string key { get; set; }
             public ConversionAction action { get; set; }
             public GameObject prefab { get; set; }
             public ConversionType convertType { get; set; }
@@ -85,42 +138,47 @@ namespace RecipeManager.Common
             public Smelter smelterComponent { get; set; }
             public Fermenter fermenterComponent { get; set; }
             public CookingStation cookingStationComponent { get; set; }
-            public List<Smelter.ItemConversion> updatedSmelterConversions { get; set; }
-            public List<Fermenter.ItemConversion> updatedFermenterConversions { get; set; }
-            public List<CookingStation.ItemConversion> updatedCookingConversions { get; set; }
+            // Null when the entry lists no conversions, the station then keeps its own
+            public List<ResolvedConversion> conversions { get; set; }
             // Null means the field was not configured and the station keeps its own value
             public int? maxOres { get; set; }
             public int? maxFuel { get; set; }
             public int? fuelPerProduct { get; set; }
             public float? conversionTime { get; set; }
-            public float overCookedTime { get; set; }
             public float? secPerFuel { get; set; }
             public ItemDrop fuelItem { get; set; }
+            public ItemDrop overCookedItem { get; set; }
+            public Incinerator incineratorComponent { get; set; }
+            public bool? spawnStack { get; set; }
+            public bool? requiresRoof { get; set; }
+            public bool? requiresFire { get; set; }
+            public ItemDrop defaultResult { get; set; }
+            public int? defaultCost { get; set; }
+            /// <summary>Null when the entry lists none. Each keeps the def it came from, for the values an Add leaves out.</summary>
+            public List<(Incinerator.IncineratorConversion built, IncineratorConversionDef def)> incineratorConversions { get; set; }
         }
 
         public class TrackedPiece
         {
+            /// <summary>The entry's name, for messages.</summary>
+            public string key { get; set; }
             public PieceAction action { get; set; }
             public string prefab {  get; set; }
-            // The values a piece shipped with are snapshotted in PieceUpdater, a component reference here
-            // would just alias the object being modified.
+            public PieceModification definition { get; set; }
+            // Resolved while tracking. The values a piece shipped with are snapshotted in PieceUpdater, a
+            // component reference here would just alias the object being modified.
+            /// <summary>Null keeps the piece's build cost.</summary>
             public Requirement[] updatedRequirements { get; set; }
+            /// <summary>False keeps the piece's station, true sets it to <see cref="RequiredToPlaceCraftingStation"/>, which can be null.</summary>
+            public bool stationSet { get; set; }
             public CraftingStation RequiredToPlaceCraftingStation { get; set; }
-            public bool AllowedInDungeon { get; set; } = false;
-            public bool CanBeDeconstructed { get; set; } = true;
-            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
-            public int ComfortAmount { get; set; } = -1;
-            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
-            public bool IsUpgradeForStation {  get; set; }
-            public float CraftingStationConnectionRadius { get; set; } = -1f;
-            public bool MustBeAvobeConnectedStation { get; set; } = false;
-            public float SpaceRequired { get; set; } = -1;
-            public string PieceName { get; set; }
-            public string PieceDescription { get; set; }
-            public bool EnablePiece { get; set; } = true;
-            public Heightmap.Biome OnlyInBiome { get; set; } = Heightmap.Biome.All;
-            public bool CultivatedGroundOnly { get; set; } = false;
-            public bool GroundPlacement { get; set; } = true;
+            public PieceCategory? category { get; set; }
+            /// <summary>Null keeps the piece's blocking pieces.</summary>
+            public List<Piece> blockingPieces { get; set; }
+            /// <summary>Null keeps the station an extension belongs to.</summary>
+            public CraftingStation extensionStation { get; set; }
+            /// <summary>Null keeps a fireplace's fuel.</summary>
+            public ItemDrop fireplaceFuel { get; set; }
         }
 
         [DataContract]
@@ -129,28 +187,37 @@ namespace RecipeManager.Common
             public Dictionary<String, PieceModification> PieceModifications { get; set; } = new Dictionary<string, PieceModification>();
         }
 
+        /// <summary>
+        /// A Modify only changes what it sets, everything left out keeps the piece's current value. The YAML key
+        /// is the camelCase of each property name, so the misspelled mustBeAvobeConnectedStation stays as it is.
+        /// </summary>
         [DataContract]
-        public class PieceModification
+        public partial class PieceModification
         {
+            // Always written, Disable is the enum's default and would otherwise be left out of dumps and imports
+            [YamlMember(DefaultValuesHandling = DefaultValuesHandling.Preserve)]
             public PieceAction action { get; set; }
             public string prefab { get; set; }
-            public List<SimpleRequirement> requirements { get; set; } = new List<SimpleRequirement>();
+            /// <summary>Null keeps the build cost, an empty list makes the piece free.</summary>
+            public List<SimpleRequirement> requirements { get; set; }
+            /// <summary>Left out keeps the station, 'none' removes the need for one.</summary>
             public String RequiredToPlaceCraftingStation { get; set;}
-            public bool AllowedInDungeon { get; set; } = false;
-            public bool CanBeDeconstructed { get; set; } = true;
-            public PieceCategory PieceCategory { get; set; } = PieceCategory.All;
-            public int ComfortAmount { get; set; } = -1;
-            public ComfortGroup ComfortGroup { get; set; } = ComfortGroup.None;
-            public bool IsUpgradeForStation { get; set; }
-            public float CraftingStationConnectionRadius { get; set; } = -1f;
-            public bool MustBeAvobeConnectedStation { get; set; } = false;
-            public float SpaceRequired { get; set; } = -1;
+            public bool? AllowedInDungeon { get; set; }
+            public bool? CanBeDeconstructed { get; set; }
+            /// <summary>A build tab, one of the game's piece categories.</summary>
+            public string PieceCategory { get; set; }
+            public int? ComfortAmount { get; set; }
+            public ComfortGroup? ComfortGroup { get; set; }
+            public bool? IsUpgradeForStation { get; set; }
+            public float? CraftingStationConnectionRadius { get; set; }
+            public bool? MustBeAvobeConnectedStation { get; set; }
+            public float? SpaceRequired { get; set; }
             public string PieceName { get; set; }
             public string PieceDescription { get; set; }
-            public bool EnablePiece { get; set; } = true;
-            public Heightmap.Biome OnlyInSelectBiome { get; set; } = Heightmap.Biome.All;
-            public bool CultivatedGroundOnly { get; set; } = false;
-            public bool GroundPlacement {  get; set; } = false;
+            public bool? EnablePiece { get; set; }
+            public Heightmap.Biome? OnlyInSelectBiome { get; set; }
+            public bool? CultivatedGroundOnly { get; set; }
+            public bool? GroundPlacement {  get; set; }
         }
 
         [DataContract]
@@ -158,15 +225,26 @@ namespace RecipeManager.Common
         {
             public string Prefab { get; set; }
             public int amount { get; set; }
-            public bool recover { get; set; } = true;
+            /// <summary>Whether this is refunded when the piece is torn down. Left out, it keeps what the piece has for the same item, or true.</summary>
+            public bool? recover { get; set; }
         }
 
         public class TrackedRecipe
         {
+            public string key { get; set; }
             public Action action { get; set; }
             public string prefab { get; set; }
             public string recipeName { get; set; }
+            /// <summary>
+            /// The recipe as the game or the mod that adds it made it, never one this mod built. A Modify takes the
+            /// values it leaves out from here and a revert puts this back.
+            /// </summary>
             public Recipe originalRecipe { get; set; }
+            /// <summary>
+            /// The object in the recipe list that a Modify replaces. Usually <see cref="originalRecipe"/>, but a
+            /// recipe another mod registers through Jotunn can come back as the one this mod built last time.
+            /// </summary>
+            public Recipe listedRecipe { get; set; }
             // Whether originalRecipe was switched on before this mod touched it, the game ships some recipes off
             public bool originalEnabled { get; set; }
             public Recipe updatedRecipe { get; set; }
@@ -188,13 +266,20 @@ namespace RecipeManager.Common
             public Action action { get; set; }
             public string prefab { get; set; }
             public string recipeName { get; set; }
+            // Everything from here on is nullable so that leaving it out of a Modify keeps whatever the recipe
+            // already has, and an added recipe starts from the game's defaults. See RecipeBuilder and
+            // RecipeFields for how each one is resolved.
+            /// <summary>A crafting station's prefab name or its $piece_ name. 'none', or an empty value, makes the recipe handcrafted.</summary>
             public string craftedAt { get; set; }
+            /// <summary>Like craftedAt. Items can always be repaired where they are crafted, this adds a second station.</summary>
             public string repairAt { get; set; }
-            public short minStationLevel { get; set; } = 1;
-            public short craftAmount { get; set; } = 1;
-            // The fields below are nullable so that leaving one out keeps whatever the recipe being modified
-            // already has, and an added recipe starts from the game's defaults. Entries written before these
-            // fields existed rely on that. See RecipeFields for how each one is resolved.
+            public short? minStationLevel { get; set; }
+            /// <summary>
+            /// The highest station level upgrading ever needs. The game asks for one more level per upgrade, this
+            /// caps it so the last upgrades can be done at a lower level. Uses a game patch.
+            /// </summary>
+            public short? maxStationLevel { get; set; }
+            public short? craftAmount { get; set; }
             /// <summary>False keeps the recipe switched off. Left out, Modify and Add switch the recipe on.</summary>
             public bool? enabled { get; set; }
             /// <summary>Only listed in a station's upgrade tab, never its craft tab. The game's Deep North gold gear uses this.</summary>
@@ -209,20 +294,26 @@ namespace RecipeManager.Common
         [DataContract]
         public class SimpleRecipe
         {
-            public bool anyOneResource { get; set; } = false;
+            public bool? anyOneResource { get; set; }
 
-            public bool noRecipeCost { get; set; } = false;
-            public List<Ingrediant> ingredients { get; set; } = new List<Ingrediant>();
+            public bool noRecipeCost { get; set; }
+            /// <summary>Left out, a Modify keeps the recipe's ingredients. An empty list makes the recipe free.</summary>
+            public List<Ingrediant> ingredients { get; set; }
         }
 
         [DataContract]
         public class Ingrediant
         {
             public string prefab { get; set; }
-            public short craftCost { get; set; }
-            public short upgradeCost { get; set; }
             // Nullable like RecipeModification's optional fields. Left out, a Modify copies the value from the
-            // modified recipe's requirement for the same prefab.
+            // modified recipe's requirement for the same prefab, or uses 0 for an item the recipe did not have.
+            public short? craftCost { get; set; }
+            public short? upgradeCost { get; set; }
+            /// <summary>
+            /// What upgrading to each level costs, by the level reached: {2: 5, 3: 10}. A level not listed costs none
+            /// of this ingredient. Replaces upgradeCost, and uses a game patch.
+            /// </summary>
+            public Dictionary<int, int> upgradeCosts { get; set; }
             /// <summary>
             /// Only paid at an upgrader station (the Forge of Potential), every other station ignores it. This is
             /// how the idols are attached to armor and weapons. craftCost is what each upgrade costs.
@@ -250,6 +341,8 @@ namespace RecipeManager.Common
         [DataContract]
         public class ItemAddition
         {
+            // Always written, Add is the enum's default and would otherwise be left out of dumps and imports
+            [YamlMember(DefaultValuesHandling = DefaultValuesHandling.Preserve)]
             public ItemAction action { get; set; }
             public string prefab { get; set; }
             public string clonedFrom { get; set; }
@@ -262,9 +355,19 @@ namespace RecipeManager.Common
             public int? maxStackSize { get; set; }
             public int? value { get; set; }
             public bool? teleportable { get; set; }
+            /// <summary>Seconds it takes to put the item on.</summary>
+            public float? equipDuration { get; set; }
+            /// <summary>Kept on death and cannot be moved into a chest, like the game's keys.</summary>
+            public bool? questItem { get; set; }
+            /// <summary>An item whose tooltip is shown below this one's, the way the feasts show their food. 'none' removes it.</summary>
+            public string appendToolTip { get; set; }
+            public ItemQuality quality { get; set; }
+            public ItemDurability durability { get; set; }
             public FoodStats food { get; set; }
             public WeaponStats weapon { get; set; }
             public ArmorStats armor { get; set; }
+            public StaminaModifiers staminaModifiers { get; set; }
+            public AdrenalineStats adrenaline { get; set; }
             // A null list keeps whatever resistances the item already has, an empty list clears them all.
             public List<DamageResistance> resistances { get; set; }
             public ItemStatusEffects statusEffects { get; set; }
@@ -305,6 +408,8 @@ namespace RecipeManager.Common
             public float? lightning { get; set; }
             public float? poison { get; set; }
             public float? spirit { get; set; }
+            /// <summary>Damage only dealt to creatures, never to players.</summary>
+            public float? nonPlayer { get; set; }
         }
 
         [DataContract]
@@ -317,6 +422,20 @@ namespace RecipeManager.Common
             public float? backstabBonus { get; set; }
             /// <summary>Which materials the tool can harvest, 0 is wood and stone, 2 is black metal.</summary>
             public int? toolTier { get; set; }
+            /// <summary>The skill the weapon trains and uses: one of the game's, such as Swords or Bows, or one a mod adds.</summary>
+            public string skill { get; set; }
+            /// <summary>The kind of ammo a bow or crossbow fires, or the kind an ammo item is. The game's are $ammo_arrows and $ammo_bolts.</summary>
+            public string ammoType { get; set; }
+            /// <summary>Whether its hits can be dodged.</summary>
+            public bool? dodgeable { get; set; }
+            /// <summary>Whether its hits can be blocked.</summary>
+            public bool? blockable { get; set; }
+            /// <summary>A prefab spawned where it hits something, 'none' for nothing.</summary>
+            public string spawnOnHit { get; set; }
+            /// <summary>A prefab spawned where it hits the ground, 'none' for nothing.</summary>
+            public string spawnOnHitTerrain { get; set; }
+            public AttackStats primaryAttack { get; set; }
+            public AttackStats secondaryAttack { get; set; }
         }
 
         [DataContract]
@@ -331,6 +450,17 @@ namespace RecipeManager.Common
             /// <summary>Movement speed change while equipped, as a fraction. -0.05 is 5% slower.</summary>
             public float? movementModifier { get; set; }
             public float? eitrRegenModifier { get; set; }
+            /// <summary>Protection from the Ashlands heat while equipped, as a fraction.</summary>
+            public float? heatResistanceModifier { get; set; }
+            /// <summary>How much more a block absorbs when it is timed as a parry, as a multiplier.</summary>
+            public float? timedBlockBonus { get; set; }
+            /// <summary>Stamina given back by a parry.</summary>
+            public float? perfectBlockStaminaRegen { get; set; }
+            /// <summary>Whether blocking builds up charges, like the game's bucklers.</summary>
+            public bool? buildBlockCharges { get; set; }
+            public int? maxBlockCharges { get; set; }
+            /// <summary>Seconds before a block charge wears off.</summary>
+            public float? blockChargeDecayTime { get; set; }
         }
 
         [DataContract]
@@ -349,6 +479,10 @@ namespace RecipeManager.Common
             public string onHit { get; set; }
             /// <summary>Chance for the onHit effect to land, 0 to 1.</summary>
             public float? onHitChance { get; set; }
+            /// <summary>Applied to the wearer when they parry.</summary>
+            public string perfectBlock { get; set; }
+            /// <summary>Applied when the wearer's adrenaline fills up.</summary>
+            public string fullAdrenaline { get; set; }
         }
 
         /// <summary>
@@ -370,10 +504,14 @@ namespace RecipeManager.Common
         {
             public string craftedAt { get; set; }
             public string repairAt { get; set; }
-            public short minStationLevel { get; set; } = 1;
-            public short craftAmount { get; set; } = 1;
-            public bool anyOneResource { get; set; } = false;
-            public List<Ingrediant> ingredients { get; set; } = new List<Ingrediant>();
+            /// <summary>Left out, 1.</summary>
+            public short? minStationLevel { get; set; }
+            /// <summary>Like a recipe's maxStationLevel.</summary>
+            public short? maxStationLevel { get; set; }
+            /// <summary>Left out, 1.</summary>
+            public short? craftAmount { get; set; }
+            public bool? anyOneResource { get; set; }
+            public List<Ingrediant> ingredients { get; set; }
         }
 
         public class TrackedItem

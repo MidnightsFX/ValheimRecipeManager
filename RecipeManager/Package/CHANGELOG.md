@@ -1,3 +1,28 @@
+ **0.11.0**
+---
+```
+- Pieces can now be added by copying another piece, and moved to another tool or to a build tab of their own.
+- Pieces can change their placement rules, how sturdy they are, and how they work as a crafting station, station upgrade, container or fire.
+- Pieces can require an upgraded crafting station before they can be placed.
+- The obliterator's conversions can now be changed, and smelters and cooking stations can choose whether they need a roof or a fire.
+- Status effects can now be added, by copying one or from scratch, and existing ones can be changed.
+- Status effects can raise maximum health, stamina and eitr while they last.
+- Added console commands that list status effects and reload their files.
+- Added a console command that converts WackysDatabase recipe, item and piece files, with a report of what could not be carried across.
+	- Convert piece changes
+	- Convert status effect changes
+	- Convert recipe changes with single level ingrediants
+- Recipes can set a different upgrade cost for each level, and cap the station level that upgrading needs.
+- The mod now only patches the game while a config uses a setting that needs it, and a console command lists those patches.
+- Items can now change their durability, upgrade levels, skill, parrying and stamina costs, and the numbers behind their attacks and projectiles.
+- The item dump lists these stats, and the WackysDatabase import now carries them across.
+- Changing a recipe or piece now only changes what you set, and everything left out keeps its current value.
+- Fixed clients using their own piece settings instead of the server's, and using the server's settings after leaving it.
+- A config file with a duplicate or empty entry no longer stops the mod from loading, and new config files are picked up without a restart.
+- Adding a conversion a station already has now updates it, and changing a station no longer changes others with a similar name.
+- Cooking stations can set what burnt food turns into, and crafting stations can be named the way the game shows them.
+```
+
  **0.6.5**
 ---
 ```

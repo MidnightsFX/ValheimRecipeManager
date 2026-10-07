@@ -1,9 +1,6 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
-using Jotunn.Entities;
-using Jotunn.Managers;
 using System;
-using System.Collections;
 using System.IO;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
@@ -19,21 +16,24 @@ namespace RecipeManager.Common
         public static ConfigEntry<bool> EnableDelayedValidationRun;
         public static ConfigEntry<float> ValidationRecheckDelay;
 
-        public static String recipeConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Recipes.yaml");
-        public static List<string> RecipeConfigFilePaths = new List<string>();
-        public static String pieceConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Pieces.yaml");
-        public static List<string> PieceConfigFilePaths = new List<string>();
-        public static String ConversionConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Conversions.yaml");
-        public static List<string> ConversionConfigFilePaths = new List<string>();
-        public static String ItemConfigFilePath = Path.Combine(Paths.ConfigPath, "RecipeManager", "Items.yaml");
-        public static List<string> ItemConfigFilePaths = new List<string>();
         public static IDeserializer yamldeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
+        /// <summary>For the files people read: the reference dumps, the default files and imports. Leaves out every default value.</summary>
         public static ISerializer yamlserializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults).Build();
+        /// <summary>
+        /// For what is sent to clients. Only leaves out nulls: a value left out comes back as whatever the field
+        /// starts as, which for a non-nullable field with an initializer is not the value that was sent.
+        /// </summary>
+        public static ISerializer syncSerializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull).Build();
 
-        private static CustomRPC RecipeConfigRPC;
-        private static CustomRPC PiecesConfigRPC;
-        private static CustomRPC ConversionConfigRPC;
-        private static CustomRPC ItemsConfigRPC;
+        public static ConfigChannel<RecipeModificationCollection, RecipeModification> Recipes;
+        public static ConfigChannel<PieceModificationCollection, PieceModification> Pieces;
+        public static ConfigChannel<ConversionModificationCollection, ConversionModification> Conversions;
+        public static ConfigChannel<ItemAdditionCollection, ItemAddition> Items;
+        public static ConfigChannel<StatusEffectCollection, StatusEffectDefinition> StatusEffects;
+        private static readonly List<ConfigChannel> Channels = new List<ConfigChannel>();
+
+        // Held so it is not collected, which would silently stop the reloads
+        private static FileSystemWatcher configWatcher;
 
         public ValConfig(ConfigFile cfgref)
         {
@@ -41,8 +41,16 @@ namespace RecipeManager.Common
             cfg = cfgref;
             cfg.SaveOnConfigSet = true;
             CreateConfigValues(cfgref);
-            SetupSecondaryConfigFile();
-            SetupConfigRPCs();
+            CreateChannels();
+            SetupSecondaryConfigFiles();
+            foreach (ConfigChannel channel in Channels) { channel.LoadFromDisk(); }
+            WatchConfigFolder();
+            Recipes.RegisterRpc();
+            Pieces.RegisterRpc();
+            Conversions.RegisterRpc();
+            // Ahead of the items, which can point at the effects it adds
+            StatusEffects.RegisterRpc();
+            Items.RegisterRpc();
         }
 
         private void CreateConfigValues(ConfigFile Config) {
@@ -58,51 +66,110 @@ namespace RecipeManager.Common
             ValidationRecheckDelay = BindServerConfig("Sync", "ValidationRecheckDelay", 60f, "The duration, in seconds that the secondary validation run will wait to run", true);
         }
 
-        private static void SetupSecondaryConfigFile()
+        private static void CreateChannels()
         {
-            string externalConfigFolder = GetSecondaryConfigDirectoryPath();
-            bool hasRecipeConfig = false;
-            bool hasPieceConfig = false;
-            bool hasConversionConfig = false;
-            bool hasItemConfig = false;
+            Recipes = new ConfigChannel<RecipeModificationCollection, RecipeModification>(
+                "recipe", "Recipes.yaml", new[] { RecipePrintCommand.DumpFileName }, "recipeManager_recipes_rpc",
+                collection => collection.RecipeModifications,
+                entries => new RecipeModificationCollection { RecipeModifications = entries },
+                () => RecipeUpdater.RecipesToModify,
+                entries => RecipeUpdater.RecipesToModify = entries,
+                RecipeUpdater.Reapply);
+            Pieces = new ConfigChannel<PieceModificationCollection, PieceModification>(
+                "piece", "Pieces.yaml", null, "recipeManager_pieces_rpc",
+                collection => collection.PieceModifications,
+                entries => new PieceModificationCollection { PieceModifications = entries },
+                () => PieceUpdater.PiecesToModify,
+                entries => PieceUpdater.PiecesToModify = entries,
+                PieceUpdater.Reapply);
+            Conversions = new ConfigChannel<ConversionModificationCollection, ConversionModification>(
+                "conversion", "Conversions.yaml", null, "recipeManager_conversion_rpc",
+                collection => collection.ConversionModifications,
+                entries => new ConversionModificationCollection { ConversionModifications = entries },
+                () => ConversionUpdater.ConversionsToModify,
+                entries => ConversionUpdater.ConversionsToModify = entries,
+                ConversionUpdater.Reapply);
+            Items = new ConfigChannel<ItemAdditionCollection, ItemAddition>(
+                "item", "Items.yaml", new[] { ItemPrintCommand.DumpFileName }, "recipeManager_items_rpc",
+                collection => collection.ItemAdditions,
+                entries => new ItemAdditionCollection { ItemAdditions = entries },
+                () => ItemUpdater.ItemDefinitions,
+                entries => ItemUpdater.ItemDefinitions = entries,
+                // Items cannot be registered once the object DB exists, so an item the server has but this
+                // client does not needs a restart. Everything else - the stats of items that are already
+                // here, and every modification of an existing item - is brought in line.
+                ItemUpdater.ReapplyExistingItems);
+            StatusEffects = new ConfigChannel<StatusEffectCollection, StatusEffectDefinition>(
+                "statuseffect", "StatusEffects.yaml", new[] { StatusEffectPrintCommand.DumpFileName }, "recipeManager_statuseffects_rpc",
+                collection => collection.statusEffects,
+                entries => new StatusEffectCollection { statusEffects = entries },
+                () => StatusEffectUpdater.Definitions,
+                entries => StatusEffectUpdater.Definitions = entries,
+                ReapplyStatusEffects);
+            Channels.Add(Recipes);
+            Channels.Add(Pieces);
+            Channels.Add(Conversions);
+            Channels.Add(StatusEffects);
+            Channels.Add(Items);
+        }
 
-            string[] presentFiles = Directory.GetFiles(externalConfigFolder);
+        /// <summary>Items point straight at the effect objects, so they are brought in line after the effects change.</summary>
+        private static void ReapplyStatusEffects()
+        {
+            StatusEffectUpdater.Reapply();
+            ItemUpdater.RefreshStatusEffectReferences();
+        }
 
-            foreach (string configFile in presentFiles)
+        /// <summary>
+        /// Re-reads every local config file. Hooked to the main menu, so that after playing on a server the
+        /// game goes back to this machine's own configuration.
+        /// </summary>
+        internal static void ReloadLocalConfigs()
+        {
+            foreach (ConfigChannel channel in Channels) { channel.LoadFromDisk(); }
+        }
+
+        /// <summary>
+        /// One watcher for the whole folder, so a file added while the game runs is picked up too. Events are
+        /// handed to the main thread, and each kind of file waits for its changes to settle before reloading.
+        /// Subfolders are not watched, they are not loaded either.
+        /// </summary>
+        private static void WatchConfigFolder()
+        {
+            configWatcher = new FileSystemWatcher(GetSecondaryConfigDirectoryPath(), "*.yaml");
+            configWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+            configWatcher.IncludeSubdirectories = false;
+            configWatcher.Changed += OnConfigFileChanged;
+            configWatcher.Created += OnConfigFileChanged;
+            configWatcher.Deleted += OnConfigFileChanged;
+            configWatcher.Renamed += OnConfigFileRenamed;
+            configWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+            configWatcher.EnableRaisingEvents = true;
+        }
+
+        private static void OnConfigFileChanged(object sender, FileSystemEventArgs e)
+        {
+            DispatchChange(e.Name);
+        }
+
+        private static void OnConfigFileRenamed(object sender, RenamedEventArgs e)
+        {
+            // Renaming a file can take it out of one kind and into another
+            DispatchChange(e.OldName);
+            DispatchChange(e.Name);
+        }
+
+        private static void DispatchChange(string fileName)
+        {
+            foreach (ConfigChannel channel in Channels)
             {
-                if (configFile.Contains("Recipes.yaml") && !configFile.Contains("ObjectDBRecipes.yaml"))
-                {
-                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found recipe configuration yaml: {configFile}"); }
-                    RecipeConfigFilePaths.Add(configFile);
-                    hasRecipeConfig = true;
-                }
-                if (configFile.Contains("Pieces.yaml"))
-                {
-                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found pieces configuration yaml: {configFile}"); }
-                    PieceConfigFilePaths.Add(configFile);
-                    hasPieceConfig = true;
-                }
-                if (configFile.Contains("Conversions.yaml"))
-                {
-                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found Conversion configuration yaml: {configFile}"); }
-                    ConversionConfigFilePaths.Add(configFile);
-                    hasConversionConfig = true;
-                }
-                if (configFile.Contains("Items.yaml") && !configFile.Contains("ObjectDBItems.yaml"))
-                {
-                    if (EnableDebugMode.Value) { Logger.LogInfo($"Found Item configuration yaml: {configFile}"); }
-                    ItemConfigFilePaths.Add(configFile);
-                    hasItemConfig = true;
-                }
+                if (channel.Matches(fileName)) { channel.ScheduleReload(); }
             }
+        }
 
-            // write out the recipe config defaults if they do not exist
-            if (hasRecipeConfig == false)
-            {
-                Logger.LogInfo("Recipe file missing, recreating.");
-                using (StreamWriter writetext = new StreamWriter(recipeConfigFilePath))
-                {
-                    String header = @"#################################################
+        private static void SetupSecondaryConfigFiles()
+        {
+            WriteDefaultFile(Recipes, Recipes.FindFiles().Count, @"#################################################
 # Recipe Manipulation Config
 #################################################
 # recipeModifications:                     # <- This is the top level key, all modifications live under this, it is required.
@@ -112,41 +179,44 @@ namespace RecipeManager.Common
 #   AddNewWoodArrowRecipe:
 #     action: Add
 #     prefab: ArrowWood
-#     recipeName: Recipe_ArrowWood         # <- optional, specifying the recipe name allows matching and mutating multiple recipes targeting the same prefab
-#     craftedAt: Workbench                 # <- The crafting station that should craft this recipe, leave it empty or invalid for handcrafting
+#     recipeName: Recipe_ArrowWood_Cheap   # <- optional. On an Add it names the new recipe, otherwise it picks which recipe to change when an item has several
+#     craftedAt: piece_workbench           # <- The crafting station's prefab name, its $piece_ name works too. Left out of an Add, empty or 'none' means handcrafted
 #     minStationLevel: 2                   # <- This is the required crafting station level for discovery AND crafting
-#     recipe:                              # <- When performing [Modify] or [Add] you should define a recipe
+#     recipe:                              # <- An Add needs a recipe
 #       anyOneResource: false              # <- This makes the recipe only require one ingrediant, first from the top will be used.
 #       noRecipeCost: false                # <- This makes the recipe not require any resources to craft, if this is used the ingredients list will be ignored
 #       ingredients:                       # <- Ingrediants in the recipe, is an array
 #         - prefab: Wood                   # <- Prefab that this ingrediant requires
-#           craftCost: 2                   # <- The amount of this ingrediant it takes to craft the recipe  
-#           upgradeCost: 0                 # <- The amount of this ingrediant it takes to upgrade the item 
+#           craftCost: 2                   # <- The amount of this ingrediant it takes to craft the recipe
+#           upgradeCost: 0                 # <- The amount of this ingrediant it takes to upgrade the item, per level
 #         - prefab: Feathers
 #           craftCost: 2
 #           upgradeCost: 0
 #   DeleteTrollHideArmorRecipe:
 #     action: Delete
 #     prefab: CapeTrollHide
-#   ModifyTrollHideChestRecipe:
-#     action: Modify
+#   CheaperTrollHideChest:
+#     action: Modify                       # <- A Modify only changes what it sets, everything left out keeps the recipe's current value
 #     prefab: ArmorTrollLeatherChest
-#     craftedAt: Workbench
-#     minStationLevel: 1
+#     minStationLevel: 2                   # <- Only the station level changes here, the station and ingredients stay as they are
+#   TrollHideLegsCost:
+#     action: Modify
+#     prefab: ArmorTrollLeatherLegs
 #     recipe:
-#       anyOneResource: false
-#       ingredients:
+#       ingredients:                       # <- Listing ingredients replaces them all. Leave the list out to keep them, [] makes the recipe free
 #         - prefab: TrollHide
-#           craftCost: 4
+#           craftCost: 4                   # <- Left out, an ingredient keeps the amount the recipe already had for it
 #           upgradeCost: 2
 #         - prefab: Upgrader1Armor         # <- The idol the Forge of Potential takes to upgrade this armor
 #           craftCost: 1                   # <- For an upgrader resource this is what every upgrade costs
 #           upgraderResource: true         # <- Only paid at the Forge of Potential, every other station ignores it.
 #                                          #    Leave the idol out of a Modify and the recipe keeps the one it had.
 #
-# Optional fields. Left out of a Modify, each one keeps the value the recipe already had, an Add starts from the
-# game's defaults. The exception is enabled: left out, Modify and Add switch the recipe on.
-# RM_Recipes_PrintAll writes them out wherever a recipe differs from the defaults.
+# Every field of a Modify keeps the recipe's current value when it is left out, an Add starts from the game's
+# defaults. The exception is enabled: left out, Modify and Add switch the recipe on.
+# RM_Recipes_PrintAll writes the recipes in the game out to ObjectDBRecipes.yaml, to copy entries from.
+#     craftAmount: 1                       # <- How many items one craft makes
+#     repairAt: piece_workbench            # <- A second station that can repair the item, besides the one it is crafted at
 #     enabled: false                       # <- Keeps the recipe switched off
 #     upgradeOnly: true                    # <- Only listed in a station's upgrade tab, never the craft tab. The Deep North gold gear uses this
 #     listSortWeight: 100                  # <- Position in the crafting list, lower comes first. The game uses 100, fishing bait 500 and up
@@ -156,33 +226,26 @@ namespace RecipeManager.Common
 #         - prefab: TrollHide
 #           recover: true                  # <- Whether part of this is refunded when the Forge of Potential breaks the item
 #           anyOneExtraAmount: 1           # <- With anyOneResource, extra items crafted when this is the ingredient used
-";
+");
 
-                    writetext.WriteLine(header);
-                    writetext.WriteLine(YamlRecipeConfigDefinition());
-                }
-            }
-
-            // write out the piece config defaults if they do not exist
-            if (hasPieceConfig == false)
-            {
-                Logger.LogInfo("Pieces file missing, recreating.");
-                using (StreamWriter writetext = new StreamWriter(pieceConfigFilePath))
-                {
-                    String header = @"############################################################################
+            WriteDefaultFile(Pieces, Pieces.FindFiles().Count, @"############################################################################
 # Piece Manipulation Config
 ############################################################################
+# A Modify only changes what it sets. Every field left out keeps the piece's current value.
+# RM_Pieces_PrintAll writes every piece in the game out to AllPiecesDebug.yaml, to copy entries from.
+#
 # pieceModifications:                                      # <- This is the top level key, it is required
 #  modify_the_bed:                                         # <- REQUIRED The name of this modification, it should be unique but is for your information
-#    action: Enable                                        # <- REQUIRED This is the action applied can be [Enable, Disable, Modify]
+#    action: Modify                                        # <- REQUIRED This is the action applied can be [Enable, Disable, Modify]
 #    prefab: bed                                           # <- REQUIRED This is the prefab that the action will be applied to
-#    requirements:                                         # <- If the piece is being modified, you can set requirements which will be the cost to build this
+#    requirements:                                         # <- The cost to build this. Left out keeps the cost, [] makes the piece free
 #    - prefab: Wood                                        # <- Each requirement entry requires a prefab name, you can find item prefabs on the valheim wiki
 #      amount: 8                                           # <- The amount of the prefab required
+#      recover: true                                       # <- Whether this is refunded when the piece is torn down
 #    requiredToPlaceCraftingStation: piece_workbench       # <- The crafting station used to place this item, if it is set to 'none' it will remove the station requirement
 #    allowedInDungeon: false                               # <- If you can build this inside dungeons
 #    canBeDeconstructed: true                              # <- If this can be broken with middle mouse
-#    pieceCategory: Furniture                              # <- The category tab this will be placed in. This can be any of the categories across any available tools
+#    pieceCategory: Furniture                              # <- The build tab this is listed in: Misc, Crafting, BuildingWorkbench, BuildingStonecutter, Furniture, Feasts, Food or Meads
 #    comfortAmount: 1                                      # <- If above 0 this item will provide comfort
 #    comfortGroup: Bed                                     # <- The comfort group this is a part of
 #    isUpgradeForStation: false                            # <- If this piece is considered an upgrade for a crafting station
@@ -192,38 +255,56 @@ namespace RecipeManager.Common
 #    pieceName: $piece_bed                                 # <- The localizable name for this, setting ""My Bed"" will make this piece called ""My Bed""
 #    pieceDescription: ''                                  # <- The description for this piece, many pieces do not have this
 #    enablePiece: true                                     # <- Whether or not this piece is enabled
-#    onlyInSelectBiome: None                               # <- Whether or not this can be placed in only one biome, in vanilla this is used for plants
+#    onlyInSelectBiome: Meadows, BlackForest               # <- The biomes this can be placed in, None or All for anywhere. In vanilla this is used for plants
 #    cultivatedGroundOnly: false                           # <- Whether this piece needs to be placed on cultivated ground
-#    groundPlacement: false                                # <- Whether this piece needs to be placed on ground (stone is also considered ground)";
-                    // Write the header here too
-                    writetext.WriteLine(header);
-                    writetext.WriteLine(YamlPieceConfigDefinition());
-                }
-            }
+#    groundPlacement: false                                # <- Whether this piece needs to be placed on ground (stone is also considered ground)
+#
+# 'action: Add' makes a new piece by copying clonedFrom. Like items, adding one needs a restart. A few of the
+# other settings, every one optional, the README lists them all:
+#  big_chest:
+#    action: Add
+#    prefab: piece_chest_big                               # <- The new piece's prefab name, it has to be unique
+#    clonedFrom: piece_chest_wood
+#    pieceName: Big chest
+#    pieceTable: Hammer                                    # <- The tool it is built with. On a Modify this moves the piece
+#    usage: Storage                                        # <- The build menu tags it is listed under
+#    minStationLevel: 2                                    # <- The station level needed to place it, uses a game patch
+#    groundOnly: true                                      # <- One of the placement rules
+#    wearNTear:                                            # <- How it wears and breaks
+#      health: 800
+#    container:                                            # <- Also station, stationExtension and fireplace, for pieces that are one
+#      width: 8
+#      height: 4");
 
-            // write out the piece config defaults if they do not exist
-            if (hasConversionConfig == false)
-            {
-                Logger.LogInfo("Conversion file missing, recreating.");
-                using (StreamWriter writetext = new StreamWriter(ConversionConfigFilePath))
-                {
-                    String header = @"############################################################################
+            WriteDefaultFile(Conversions, Conversions.FindFiles().Count, @"############################################################################
 # Conversion Manipulation Config
 ############################################################################
-";
-                    // Write the header here too
-                    writetext.WriteLine(header);
-                    writetext.WriteLine(YamlConversionConfigDefinition());
-                }
-            }
+# conversionModifications:
+#   BetterKiln:
+#     action: Modify                 # <- Modify changes the station and replaces its conversion list when one is given,
+#                                    #    Add adds conversions or updates the ones the station already has for the same input,
+#                                    #    Remove takes out the conversions for the inputs listed
+#     prefab: charcoal_kiln
+#     maxOres: 30                    # <- Smelters, how many items it holds
+#     maxFuel: 0                     # <- Smelters and cooking stations, how much fuel it holds. 0 needs no fuel
+#     fuelPerProduct: 1              # <- Smelters, fuel used for each item made
+#     conversionTime: 10             # <- Smelters, seconds per item. Fermenters, seconds per batch
+#     fuelItem: Wood                 # <- Smelters and cooking stations
+#     secPerFuel: 5000               # <- Cooking stations, seconds one fuel lasts
+#     overCookedItem: Coal           # <- Cooking stations, what food turns into when it is left on too long
+#     conversions:
+#       - fromPrefab: Wood
+#         toPrefab: Coal
+#         amount: 4                  # <- Fermenters, items made. Left out keeps the station's own, or 4
+#         cookTime: 10               # <- Cooking stations, seconds to cook. Left out keeps the station's own, or 10
+#     spawnStack: false              # <- Smelters, whether what it makes comes out as one stack
+#     requiresRoof: true             # <- Smelters, whether it only works under a roof
+#     requiresFire: true             # <- Cooking stations, whether it needs a fire under it
+# The obliterator (incinerator) takes defaultResult, defaultCost and incineratorConversions instead, see the README.
+# RM_Conversion_PrintAll writes every station in the game out to AllConversionsDebug.yaml, to copy entries from.
+");
 
-            // write out the item config defaults if they do not exist
-            if (hasItemConfig == false)
-            {
-                Logger.LogInfo("Items file missing, recreating.");
-                using (StreamWriter writetext = new StreamWriter(ItemConfigFilePath))
-                {
-                    String header = @"############################################################################
+            WriteDefaultFile(Items, Items.FindFiles().Count, @"############################################################################
 # Item Config
 ############################################################################
 # Two different things live in this file.
@@ -264,7 +345,7 @@ namespace RecipeManager.Common
 #       consumeStatusEffect: ''              # <- The name of an EXISTING status effect to apply when consumed
 #     recipe:                                # <- Optional, leave it out for an item that is not crafted
 #       craftedAt: piece_cauldron            # <- The crafting station, leave it empty for handcrafting
-#       repairAt: ''                         # <- Defaults to craftedAt
+#       repairAt: ''                         # <- A second station that can repair the item
 #       minStationLevel: 1                   # <- The required crafting station level
 #       craftAmount: 1                       # <- How many of the item one craft produces
 #       anyOneResource: false                # <- Only require one of the ingredients below
@@ -315,586 +396,105 @@ namespace RecipeManager.Common
 #       size: 2                              # <- How many pieces have to be worn, has to be more than 1
 #       statusEffect: SetEffect_TrollArmor   # <- The effect wearing the full set grants
 #
-# Status effects have to already exist, this mod cannot create new ones. Use the value None to empty a
-# status effect slot instead of naming one.
+# ---------------------------------------------------------------------------
+# More stats. RM_Items_PrintAll writes every one of these an item uses, copy what you need from there.
+# ---------------------------------------------------------------------------
+#
+#   QuickCrossbow:
+#     action: Modify
+#     prefab: CrossbowArbalest
+#     equipDuration: 0.5                     # <- Seconds to put it on
+#     quality:
+#       maxLevel: 4                          # <- Highest upgrade level, 1 means it cannot be upgraded
+#     durability:
+#       max: 300
+#       perLevel: 100                        # <- Durability added by each upgrade level
+#       drainPerUse: 1
+#     weapon:
+#       skill: Crossbows                     # <- The skill it trains and uses, a mod's skill works too
+#       primaryAttack:                       # <- Also secondaryAttack. Only the numbers change, never the animation
+#         stamina: 10
+#         speedFactor: 0.5                   # <- Movement speed while attacking
+#         projectile:
+#           velocity: 250
+#           count: 1                         # <- Projectiles fired at once
+#         reload:
+#           time: 2                          # <- Seconds a reload takes
+#     staminaModifiers:                      # <- Stamina cost changes while equipped, -0.1 is 10% cheaper
+#       run: -0.1
+#       jump: -0.1
+#
+# Prefabs an item points at, like a projectile or weapon.spawnOnHit, use the prefab's name. Use the value
+# None to empty such a slot.
+#
+# Status effects are named by their prefab name, an effect added in StatusEffects.yaml works too. Use the
+# value None to empty a status effect slot instead of naming one.
 #
 # Custom icons and textures are loaded from BepInEx\config\RecipeManager\Textures\<prefab>\
 # Use 'RM_Textures_Dump <prefab>' in the console to dump an existing prefab's images, then copy that
-# folder, rename it to your new item's prefab name, and repaint the files inside it.";
-                    writetext.WriteLine(header);
-                    writetext.WriteLine(YamlItemConfigDefinition());
-                }
-            }
+# folder, rename it to your new item's prefab name, and repaint the files inside it.");
 
-            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
-
-            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
-            {
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
-                try
-                {
-                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                    allRecipeData.Add(recipeFileData);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {e}"); }
-
-                // File watcher for the recipe
-                FileSystemWatcher recipeFW = new FileSystemWatcher();
-                recipeFW.Path = externalConfigFolder;
-                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
-                recipeFW.Filter = $"{DetermineFileName(secondaryRecipeFile)}";
-                recipeFW.Changed += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
-                recipeFW.Created += new FileSystemEventHandler(UpdateRecipeConfigFilesOnChange);
-                recipeFW.Renamed += new RenamedEventHandler(UpdateRecipeConfigFilesOnChange);
-                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-                recipeFW.EnableRaisingEvents = true;
-            }
-            RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
-
-            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
-
-            foreach (var secondaryPieceFile in PieceConfigFilePaths)
-            {
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
-                try
-                {
-                    var piecefiledata = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
-                    allPieceData.Add(piecefiledata);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
-                // File watcher for the recipe
-                FileSystemWatcher recipeFW = new FileSystemWatcher();
-                recipeFW.Path = externalConfigFolder;
-                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
-                recipeFW.Filter = $"{DetermineFileName(secondaryPieceFile)}";
-                recipeFW.Changed += new FileSystemEventHandler(UpdatePieceConfigFilesOnChange);
-                recipeFW.Created += new FileSystemEventHandler(UpdatePieceConfigFilesOnChange);
-                recipeFW.Renamed += new RenamedEventHandler(UpdatePieceConfigFilesOnChange);
-                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-                recipeFW.EnableRaisingEvents = true;
-            }
-            PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
-
-            List<ConversionModificationCollection> allConversionData = new List<ConversionModificationCollection>();
-
-            foreach (var secondaryConversionPath in ConversionConfigFilePaths)
-            {
-                // read out the file
-                string convData = File.ReadAllText(secondaryConversionPath);
-                try
-                {
-                    var convDataSerialized = yamldeserializer.Deserialize<ConversionModificationCollection>(convData);
-                    allConversionData.Add(convDataSerialized);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading conversion data from {secondaryConversionPath}, it will not be used. Error: {e}"); }
-                // File watcher for the recipe
-                FileSystemWatcher recipeFW = new FileSystemWatcher();
-                recipeFW.Path = externalConfigFolder;
-                recipeFW.NotifyFilter = NotifyFilters.LastWrite;
-                recipeFW.Filter = $"{DetermineFileName(secondaryConversionPath)}";
-                recipeFW.Changed += new FileSystemEventHandler(UpdateConversionConfigFilesOnChange);
-                recipeFW.Created += new FileSystemEventHandler(UpdateConversionConfigFilesOnChange);
-                recipeFW.Renamed += new RenamedEventHandler(UpdateConversionConfigFilesOnChange);
-                recipeFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-                recipeFW.EnableRaisingEvents = true;
-            }
-            ConversionUpdater.UpdateConversionModificationsFromList(allConversionData);
-
-            List<ItemAdditionCollection> allItemData = new List<ItemAdditionCollection>();
-
-            foreach (var secondaryItemFile in ItemConfigFilePaths)
-            {
-                // read out the file
-                string itemConfigData = File.ReadAllText(secondaryItemFile);
-                try
-                {
-                    var itemFileData = yamldeserializer.Deserialize<ItemAdditionCollection>(itemConfigData);
-                    if (itemFileData != null) { allItemData.Add(itemFileData); }
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading item data from {secondaryItemFile}, it will not be used. Error: {e}"); }
-                // File watcher for the item additions
-                FileSystemWatcher itemFW = new FileSystemWatcher();
-                itemFW.Path = externalConfigFolder;
-                itemFW.NotifyFilter = NotifyFilters.LastWrite;
-                itemFW.Filter = $"{DetermineFileName(secondaryItemFile)}";
-                itemFW.Changed += new FileSystemEventHandler(UpdateItemConfigFilesOnChange);
-                itemFW.Created += new FileSystemEventHandler(UpdateItemConfigFilesOnChange);
-                itemFW.Renamed += new RenamedEventHandler(UpdateItemConfigFilesOnChange);
-                itemFW.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-                itemFW.EnableRaisingEvents = true;
-            }
-            ItemUpdater.UpdateItemAdditionsFromList(allItemData);
-        }
-
-        internal static void ReloadPieceFiles()
-        {
-            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
-
-            foreach (var secondaryPieceFile in PieceConfigFilePaths)
-            {
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
-                try
-                {
-                    var piecefiledata = yamldeserializer.Deserialize<PieceModificationCollection>(recipeConfigData);
-                    allPieceData.Add(piecefiledata);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
-            }
-            PieceUpdater.UpdatePieceModificationsFromList(allPieceData);
-        }
-
-        internal static void ReloadConversionFiles()
-        {
-            List<ConversionModificationCollection> allPieceData = new List<ConversionModificationCollection>();
-
-            foreach (var secondaryPieceFile in ConversionConfigFilePaths)
-            {
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryPieceFile);
-                try
-                {
-                    var piecefiledata = yamldeserializer.Deserialize<ConversionModificationCollection>(recipeConfigData);
-                    allPieceData.Add(piecefiledata);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading piece data from {secondaryPieceFile}, it will not be used. Error: {e}"); }
-            }
-            ConversionUpdater.UpdateConversionModificationsFromList(allPieceData);
-        }
-
-        internal static void ReloadRecipeFiles()
-        {
-            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
-
-            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
-            {
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
-                try
-                {
-                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                    allRecipeData.Add(recipeFileData);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {e}"); }
-            }
-            RecipeUpdater.UpdateRecipeModificationsFromList(allRecipeData);
-        }
-
-        internal static void ReloadItemFiles()
-        {
-            List<ItemAdditionCollection> allItemData = new List<ItemAdditionCollection>();
-
-            foreach (var itemFile in ItemConfigFilePaths)
-            {
-                // read out the file
-                string itemConfigData = File.ReadAllText(itemFile);
-                try
-                {
-                    var itemFileData = yamldeserializer.Deserialize<ItemAdditionCollection>(itemConfigData);
-                    if (itemFileData != null) { allItemData.Add(itemFileData); }
-                }
-                catch (Exception e) { Logger.LogError($"There was an error reading item data from {itemFile}, it will not be used. Error: {e}"); }
-            }
-            ItemUpdater.UpdateItemAdditionsFromList(allItemData);
-        }
-
-        private static string DetermineFileName(string fullfilepath) {
-            string filename = Path.GetFileName(fullfilepath);
-            return filename;
+            WriteDefaultFile(StatusEffects, StatusEffects.FindFiles().Count, @"############################################################################
+# Status Effect Config
+############################################################################
+# 'action: Add' makes a new status effect, a copy of 'clonedFrom' or, without it, one with no stats at all.
+# 'action: Modify' changes an effect that already exists. Anything left out keeps the effect's current value.
+# Items point at these by their prefab name, in Items.yaml.
+#
+# A change reaches an effect the next time it is given, one a player already has keeps its old values.
+# RM_StatusEffects_PrintAll writes every effect in the game out to ObjectDBStatusEffects.yaml, to copy entries from.
+#
+# statusEffects:                             # <- This is the top level key, it is required
+#   TrollSetStrength:                        # <- The name of this entry, it is for your information but SHOULD BE UNIQUE
+#     action: Add
+#     prefab: SetEffect_TrollStrength        # <- For Add, the NEW effect's name, which must be unique. For Modify, the effect to change
+#     clonedFrom: SetEffect_TrollArmor       # <- Optional for Add, the effect to copy
+#     name: Troll strength                   # <- The name shown in the game. Start it with '$' to use your own localization token
+#     tooltip: Hits harder and carries more.
+#     duration: 0                            # <- Seconds it lasts, 0 lasts for as long as something keeps it on, like a set bonus
+#     carryWeight: 50                        # <- Weight added to what the player can carry
+#     maxHealth: 25                          # <- Added to maximum health while it lasts, also maxStamina and maxEitr
+#     damage:
+#       skill: All                           # <- The weapon skill whose attacks it boosts, All for every attack
+#       multiplier: 1.1                      # <- 1.1 is 10% more damage
+#     movement:
+#       speed: 0.05                          # <- 5% faster
+#     resistances:                           # <- Replaces the whole resistance list, use [] to clear it
+#     - type: Frost
+#       modifier: Resistant
+#   LongerRested:
+#     action: Modify
+#     prefab: Rested
+#     health:
+#       regenMultiplier: 1.6                 # <- Health regeneration, 1 is normal
+#     stamina:
+#       regenMultiplier: 1.6
+#
+# More groups: messages, staminaUse, eitr, adrenaline, armor, stagger, skills, noise and stealth. Every one
+# an effect uses is in the dump. The icon is loaded from BepInEx\config\RecipeManager\Textures\<prefab>\icon.png");
         }
 
         /// <summary>
-        /// True for a dedicated server and for a player hosting from their own game. Checking for a headless
-        /// instance missed the second case, so clients of a player hosted world never got config changes.
+        /// Writes an example file for a kind of config that has none. It is all comments, which loads as no entries.
+        /// It used to end in an empty top level key, which silently emptied the file again when the example's own
+        /// top level key was uncommented above it.
         /// </summary>
-        private static bool IsServerInstance() {
-            return ZNet.instance != null && ZNet.instance.IsServer();
-        }
-
-        private static void UpdateRecipeConfigFilesOnChange(object sender, FileSystemEventArgs e)
+        private static void WriteDefaultFile(ConfigChannel channel, int existingFiles, string header)
         {
-            if (!File.Exists(recipeConfigFilePath)) { return; }
-            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Recipe filewatcher called, updating recipe Modification values."); }
-            RecipeUpdater.RecipeRevert();
-            RecipeUpdater.UpdateRecipeModifications(ReadAllRecipeConfigs());
-            RecipeUpdater.BuildRecipesForTracking();
-            RecipeUpdater.SecondaryRecipeSync();
-            if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
-            if (IsServerInstance()) {
-                try {
-                    RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
-                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent recipe configs to clients."); }
-                } catch (Exception ex) {
-                    Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
-                }
-            } else {
-                if (EnableDebugMode.Value) {
-                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
-                }
-            }
-        }
-
-        private static void UpdatePieceConfigFilesOnChange(object sender, FileSystemEventArgs e)
-        {
-            if (!File.Exists(pieceConfigFilePath)) { return; }
-            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Piece filewatcher called, updating piece Modification values."); }
-            PieceUpdater.RevertPieceModifications();
-            PieceUpdater.UpdatePieceModifications(ReadAllPieceConfigs());
-            PieceUpdater.BuildPieceTracker();
-            PieceUpdater.PieceUpdateRunner();
-            if (EnableDebugMode.Value) { Logger.LogInfo("Updated RecipeModifications in-memory values."); }
-            if (IsServerInstance()) {
-                try {
-                    PiecesConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
-                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent piece configs to clients."); }
-                } catch (Exception ex) {
-                    Logger.LogError($"Error while server syncing recipeModification configs: {ex}");
-                }
-            } else {
-                if (EnableDebugMode.Value) {
-                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
-                }
-            }
-        }
-
-        private static void UpdateConversionConfigFilesOnChange(object sender, FileSystemEventArgs e)
-        {
-            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Conversion filewatcher called, updating conversion Modification values."); }
-            ConversionUpdater.RevertConversionModifications();
-            ConversionUpdater.UpdateConversionModifications(ReadAllConversionConfigs());
-            ConversionUpdater.BuildConversionTracker();
-            ConversionUpdater.ConversionUpdateRunner();
-            if (EnableDebugMode.Value) { Logger.LogInfo("Updated ConversionModifications in-memory values."); }
-            if (IsServerInstance()) {
-                try
-                {
-                    ConversionConfigRPC.SendPackage(ZNet.instance.m_peers, SendConversionConfigs());
-                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent conversion configs to clients."); }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Error while server syncing conversionModification configs: {ex}");
-                }
-            }
-            else
+            if (existingFiles > 0) { return; }
+            Logger.LogInfo($"No {channel.Label} file found, creating {channel.Suffix}.");
+            string path = Path.Combine(GetSecondaryConfigDirectoryPath(), channel.Suffix);
+            using (StreamWriter writetext = new StreamWriter(path))
             {
-                if (EnableDebugMode.Value)
-                {
-                    Logger.LogDebug("Instance is not a server, and will not send znet recipeModification updates.");
-                }
+                writetext.WriteLine(header);
             }
         }
-
-        private static void UpdateItemConfigFilesOnChange(object sender, FileSystemEventArgs e)
-        {
-            if (EnableDebugMode.Value) { Logger.LogInfo($"{e} Item filewatcher called, updating item addition values."); }
-            ReloadItemFiles();
-            ItemUpdater.ReapplyExistingItems();
-            if (EnableDebugMode.Value) { Logger.LogInfo("Updated ItemAdditions in-memory values."); }
-            if (IsServerInstance()) {
-                try
-                {
-                    ItemsConfigRPC.SendPackage(ZNet.instance.m_peers, SendItemConfigs());
-                    if (EnableDebugMode.Value) { Logger.LogInfo("Sent item configs to clients."); }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Error while server syncing itemAddition configs: {ex}");
-                }
-            }
-            else
-            {
-                if (EnableDebugMode.Value)
-                {
-                    Logger.LogDebug("Instance is not a server, and will not send znet itemAddition updates.");
-                }
-            }
-        }
-
 
         public static string GetSecondaryConfigDirectoryPath() {
             var patchesFolderPath = Path.Combine(Paths.ConfigPath, "RecipeManager");
             var dirInfo = Directory.CreateDirectory(patchesFolderPath);
 
             return dirInfo.FullName;
-        }
-
-        public void SetupConfigRPCs()
-        {
-            RecipeConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_recipes_rpc", OnServerRecieveConfigs, OnClientReceiveRecipeConfigs);
-            SynchronizationManager.Instance.AddInitialSynchronization(RecipeConfigRPC, SendRecipeConfigs);
-            PiecesConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_pieces_rpc", OnServerRecieveConfigs, OnClientReceivePieceConfigs);
-            SynchronizationManager.Instance.AddInitialSynchronization(PiecesConfigRPC, SendPieceConfigs);
-            ConversionConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_conversion_rpc", OnServerRecieveConfigs, OnClientReceiveConversionConfigs);
-            SynchronizationManager.Instance.AddInitialSynchronization(ConversionConfigRPC, SendConversionConfigs);
-            ItemsConfigRPC = NetworkManager.Instance.AddRPC("recipeManager_items_rpc", OnServerRecieveConfigs, OnClientReceiveItemConfigs);
-            SynchronizationManager.Instance.AddInitialSynchronization(ItemsConfigRPC, SendItemConfigs);
-        }
-
-        public static IEnumerator OnServerRecieveConfigs(long sender, ZPackage package)
-        {
-            if (EnableDebugMode.Value) { Logger.LogInfo("Server recieved config from client, rejecting due to being the server."); }
-            yield return null;
-        }
-
-        private static ZPackage SendRecipeConfigs()
-        {
-            ZPackage package = new ZPackage();
-            package.Write(yamlserializer.Serialize(ReadAllRecipeConfigs()));
-            return package;
-        }
-
-        private static ZPackage SendPieceConfigs()
-        {
-            ZPackage package = new ZPackage();
-            package.Write(yamlserializer.Serialize(ReadAllPieceConfigs()));
-            return package;
-        }
-
-        private static ZPackage SendConversionConfigs()
-        {
-            ZPackage package = new ZPackage();
-            package.Write(yamlserializer.Serialize(ReadAllConversionConfigs()));
-            return package;
-        }
-
-        private static ZPackage SendItemConfigs()
-        {
-            ZPackage package = new ZPackage();
-            package.Write(yamlserializer.Serialize(ReadAllItemConfigs()));
-            return package;
-        }
-
-        public static void SendUpdatedItemConfigs() {
-            ItemsConfigRPC.SendPackage(ZNet.instance.m_peers, SendItemConfigs());
-        }
-
-        public static void SendUpdatedPieceConfigs() {
-            PiecesConfigRPC.SendPackage(ZNet.instance.m_peers, SendPieceConfigs());
-        }
-
-        public static void SendUpdatedRecipeConfigs() {
-            RecipeConfigRPC.SendPackage(ZNet.instance.m_peers, SendRecipeConfigs());
-        }
-
-        public static void SendUpdatedConversionConfigs() {
-            ConversionConfigRPC.SendPackage(ZNet.instance.m_peers, SendConversionConfigs());
-        }
-
-        private static RecipeModificationCollection ReadAllRecipeConfigs()
-        {
-            List<RecipeModificationCollection> allRecipeData = new List<RecipeModificationCollection>();
-
-            foreach (var secondaryRecipeFile in RecipeConfigFilePaths)
-            {
-                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {secondaryRecipeFile}."); }
-                // read out the file
-                string recipeConfigData = File.ReadAllText(secondaryRecipeFile);
-                try
-                {
-                    var recipeFileData = yamldeserializer.Deserialize<RecipeModificationCollection>(recipeConfigData);
-                    allRecipeData.Add(recipeFileData);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception ex) { Logger.LogError($"There was an error reading recipe data from {secondaryRecipeFile}, it will not be used. Error: {ex}"); }
-            }
-            RecipeModificationCollection allRecipeModifications = new RecipeModificationCollection();
-
-            foreach (RecipeModificationCollection rcol in allRecipeData)
-            {
-                foreach (KeyValuePair<String, RecipeModification> entry in rcol.RecipeModifications)
-                {
-                    allRecipeModifications.RecipeModifications.Add(entry.Key, entry.Value);
-                }
-            }
-            return allRecipeModifications;
-        }
-
-        private static PieceModificationCollection ReadAllPieceConfigs()
-        {
-            List<PieceModificationCollection> allPieceData = new List<PieceModificationCollection>();
-
-            foreach (var pieceFile in PieceConfigFilePaths)
-            {
-                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {pieceFile}."); }
-                // read out the file
-                string pieceConfigData = File.ReadAllText(pieceFile);
-                try
-                {
-                    var recipeFileData = yamldeserializer.Deserialize<PieceModificationCollection>(pieceConfigData);
-                    allPieceData.Add(recipeFileData);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception ex) { Logger.LogError($"There was an error reading piece data from {pieceFile}, it will not be used. Error: {ex}"); }
-            }
-            PieceModificationCollection allRecipeModifications = new PieceModificationCollection();
-
-            foreach (PieceModificationCollection rcol in allPieceData)
-            {
-                foreach (KeyValuePair<String, PieceModification> entry in rcol.PieceModifications)
-                {
-                    allRecipeModifications.PieceModifications.Add(entry.Key, entry.Value);
-                }
-            }
-            return allRecipeModifications;
-        }
-
-        private static ConversionModificationCollection ReadAllConversionConfigs()
-        {
-            List<ConversionModificationCollection> allPieceData = new List<ConversionModificationCollection>();
-
-            foreach (var convFile in ConversionConfigFilePaths)
-            {
-                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {convFile}."); }
-                // read out the file
-                string convConfigData = File.ReadAllText(convFile);
-                try
-                {
-                    var convFileData = yamldeserializer.Deserialize<ConversionModificationCollection>(convConfigData);
-                    allPieceData.Add(convFileData);
-                    //RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-                }
-                catch (Exception ex) { Logger.LogError($"There was an error reading conversion data from {convFile}, it will not be used. Error: {ex}"); }
-            }
-            ConversionModificationCollection allRecipeModifications = new ConversionModificationCollection();
-
-            foreach (ConversionModificationCollection rcol in allPieceData)
-            {
-                foreach (KeyValuePair<String, ConversionModification> entry in rcol.ConversionModifications)
-                {
-                    allRecipeModifications.ConversionModifications.Add(entry.Key, entry.Value);
-                }
-            }
-            return allRecipeModifications;
-        }
-
-        private static ItemAdditionCollection ReadAllItemConfigs()
-        {
-            List<ItemAdditionCollection> allItemData = new List<ItemAdditionCollection>();
-
-            foreach (var itemFile in ItemConfigFilePaths)
-            {
-                if (EnableDebugMode.Value) { Logger.LogDebug($"Loading values from {itemFile}."); }
-                // read out the file
-                string itemConfigData = File.ReadAllText(itemFile);
-                try
-                {
-                    var itemFileData = yamldeserializer.Deserialize<ItemAdditionCollection>(itemConfigData);
-                    if (itemFileData != null) { allItemData.Add(itemFileData); }
-                }
-                catch (Exception ex) { Logger.LogError($"There was an error reading item data from {itemFile}, it will not be used. Error: {ex}"); }
-            }
-            ItemAdditionCollection allItemAdditions = new ItemAdditionCollection();
-
-            foreach (ItemAdditionCollection icol in allItemData)
-            {
-                // A file whose entries are all commented out still parses, but leaves the dictionary null
-                if (icol?.ItemAdditions == null) { continue; }
-                foreach (KeyValuePair<String, ItemAddition> entry in icol.ItemAdditions)
-                {
-                    if (allItemAdditions.ItemAdditions.ContainsKey(entry.Key)) { continue; }
-                    allItemAdditions.ItemAdditions.Add(entry.Key, entry.Value);
-                }
-            }
-            return allItemAdditions;
-        }
-
-        private static IEnumerator OnClientReceiveItemConfigs(long sender, ZPackage package)
-        {
-            var yaml = package.ReadString();
-            try {
-                ItemUpdater.UpdateItemAdditionsFromRPC(yaml);
-            } catch {
-                Logger.LogWarning($"Recieved invalid configuration, item additions ignored.");
-            }
-            // Items cannot be registered once the object DB exists, so an item the server has but this
-            // client does not needs a restart. Everything else - the stats of items that are already
-            // here, and every modification of an existing item - is brought in line with the server.
-            ItemUpdater.ReapplyExistingItems();
-            yield return null;
-        }
-
-        private static IEnumerator OnClientReceiveRecipeConfigs(long sender, ZPackage package)
-        {
-            var yaml = package.ReadString();
-            RecipeUpdater.RecipeRevert();
-            try {
-                var recipeFileData = ValConfig.yamldeserializer.Deserialize<RecipeModificationCollection>(yaml);
-                RecipeUpdater.UpdateRecipeModifications(recipeFileData);
-            } catch {
-                Logger.LogWarning($"Recieved invalid configuration, all recipes reverted.");
-            }
-            RecipeUpdater.BuildRecipesForTracking();
-            RecipeUpdater.SecondaryRecipeSync();
-            yield return null;
-        }
-
-        private static IEnumerator OnClientReceivePieceConfigs(long sender, ZPackage package)
-        {
-            var yaml = package.ReadString();
-            PieceUpdater.RevertPieceModifications();
-            try {
-                PieceUpdater.UpdatePieceModificationsFromRPC(yaml);
-                var recipeFileData = ValConfig.yamldeserializer.Deserialize<PieceModificationCollection>(yaml);
-                PieceUpdater.UpdatePieceModifications(recipeFileData);
-            } catch {
-                Logger.LogWarning($"Recieved invalid configuration, pieces changes ignored.");
-            }
-            PieceUpdater.BuildPieceTracker();
-            PieceUpdater.PieceUpdateRunner();
-            yield return null;
-        }
-
-        private static IEnumerator OnClientReceiveConversionConfigs(long sender, ZPackage package)
-        {
-            var yaml = package.ReadString();
-            ConversionUpdater.RevertConversionModifications();
-            try {
-                ConversionUpdater.UpdateConversionModificationsFromRPC(yaml);
-            } catch {
-                Logger.LogWarning($"Recieved invalid configuration, conversions changes ignored.");
-            }
-            ConversionUpdater.BuildConversionTracker();
-            ConversionUpdater.ConversionUpdateRunner();
-            yield return null;
-        }
-
-        public static string YamlRecipeConfigDefinition()
-        {
-            var recipeCollection = new RecipeModificationCollection();
-            recipeCollection.RecipeModifications = RecipeUpdater.RecipesToModify;
-            var yaml = yamlserializer.Serialize(recipeCollection);
-            return yaml;
-        }
-
-        public static string YamlPieceConfigDefinition()
-        {
-            var pieceCollection = new PieceModificationCollection();
-            pieceCollection.PieceModifications = PieceUpdater.PiecesToModify;
-            var yaml = yamlserializer.Serialize(pieceCollection);
-            return yaml;
-        }
-
-        public static string YamlConversionConfigDefinition()
-        {
-            var pieceCollection = new ConversionModificationCollection();
-            pieceCollection.ConversionModifications = ConversionUpdater.ConversionsToModify;
-            var yaml = yamlserializer.Serialize(pieceCollection);
-            return yaml;
-        }
-
-        public static string YamlItemConfigDefinition()
-        {
-            var itemCollection = new ItemAdditionCollection();
-            itemCollection.ItemAdditions = ItemUpdater.ItemDefinitions;
-            var yaml = yamlserializer.Serialize(itemCollection);
-            return yaml;
         }
 
         /// <summary>

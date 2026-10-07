@@ -32,17 +32,15 @@ namespace RecipeManager
         /// <summary>Existing prefabs a modification is currently applied to, so they can be put back.</summary>
         private static readonly HashSet<string> ModifiedPrefabs = new HashSet<string>();
 
-        private const string TokenPrefix = "rm_item_";
-
         /// <summary>
-        /// Hooked to ItemManager.OnVanillaItemsAvailable. Safe to run repeatedly - it re-fires on every
+        /// Hooked to PrefabManager.OnVanillaPrefabsAvailable. Safe to run repeatedly - it re-fires on every
         /// ObjectDB copy, and prefabs already created in this process are refreshed rather than cloned again.
         /// </summary>
         public static void CreateCustomItems()
         {
+            TrackedItems.Clear();
             if (ItemDefinitions.Count == 0) { return; }
 
-            TrackedItems.Clear();
             foreach (KeyValuePair<String, ItemAddition> entry in ItemDefinitions)
             {
                 if (entry.Value == null)
@@ -87,8 +85,9 @@ namespace RecipeManager
 
             // Already created earlier in this process - this event re-fires on every ObjectDB copy.
             // The prefab itself lives in Jotunn's DontDestroyOnLoad container and still holds everything
-            // we wrote to it, so only the tracking needs rebuilding. Re-applying here would allocate a
-            // fresh set of materials and textures on every trip through the main menu.
+            // we wrote to it. Its art is left alone, re-applying it would allocate a fresh set of materials
+            // and textures on every trip through the main menu. Its stats are re-applied, the definition is
+            // this machine's own again after playing on a server that had a different one.
             if (CreatedPrefabs.Contains(def.prefab))
             {
                 GameObject existing = PrefabManager.Instance.GetPrefab(def.prefab);
@@ -97,6 +96,7 @@ namespace RecipeManager
                     Logger.LogWarning($"{def.prefab} was registered earlier but can no longer be resolved, skipping.");
                     return;
                 }
+                ApplyStatsOnly(existing, def);
                 tracked.itemPrefab = existing;
                 TrackedItems.Add(tracked);
                 return;
@@ -120,6 +120,10 @@ namespace RecipeManager
                 Logger.LogError($"'{def.clonedFrom}' has no ItemDrop component, so it cannot be used as the source for an item. Item addition '{modificationName}' will be skipped.");
                 return;
             }
+
+            // A source this mod has modified is copied with those changes, which would otherwise become the new
+            // item's originals for good. It starts from the source's own values instead.
+            ItemAttributes.RestoreOriginal(def.clonedFrom, GetSharedData(clone));
 
             ApplyDefinition(clone, def);
 
@@ -179,11 +183,18 @@ namespace RecipeManager
         /// </summary>
         public static void ApplyDefinition(GameObject prefab, ItemAddition def)
         {
+            if (!ApplyStatsOnly(prefab, def)) { return; }
+            ApplyArt(prefab, def.prefab, warnWhenIconless: true);
+        }
+
+        /// <summary>Names, descriptions and stats of an item this mod added, without its art. False when it has no item data.</summary>
+        private static bool ApplyStatsOnly(GameObject prefab, ItemAddition def)
+        {
             ItemDrop.ItemData.SharedData shared = GetSharedData(prefab);
             if (shared == null)
             {
                 Logger.LogWarning($"{def.prefab} has no usable ItemDrop data, nothing to apply.");
-                return;
+                return false;
             }
 
             // Start from the values the clone was born with, so a field removed from the yaml goes back
@@ -191,30 +202,30 @@ namespace RecipeManager
             ItemAttributes.CaptureOriginal(def.prefab, shared);
             ItemAttributes.RestoreOriginal(def.prefab, shared);
 
-            ApplyStats(shared, def, statusEffectsAvailable: false);
-            ApplyArt(prefab, def.prefab, warnWhenIconless: true);
+            ApplyStats(shared, def, referencesAvailable: false);
+            return true;
         }
 
         /// <summary>
         /// Names, descriptions and stats. Kept apart from the art so that several definitions can be
         /// stacked onto one prefab without reloading its textures once for each of them.
         /// </summary>
-        private static void ApplyStats(ItemDrop.ItemData.SharedData shared, ItemAddition def, bool statusEffectsAvailable)
+        private static void ApplyStats(ItemDrop.ItemData.SharedData shared, ItemAddition def, bool referencesAvailable)
         {
             if (def.action == ItemAction.Modify)
             {
                 // An item that already exists keeps its own name and description unless one is given
-                if (!string.IsNullOrEmpty(def.name)) { shared.m_name = ResolveToken(def.name, def.prefab, string.Empty); }
+                if (!string.IsNullOrEmpty(def.name)) { shared.m_name = Tokens.Resolve(def.name, Tokens.ItemPrefix, def.prefab, string.Empty); }
             }
             else
             {
                 shared.m_name = ResolveNameToken(def);
             }
 
-            string description = ResolveToken(def.description, def.prefab, "_desc");
+            string description = Tokens.Resolve(def.description, Tokens.ItemPrefix, def.prefab, "_desc");
             if (description != null) { shared.m_description = description; }
 
-            ItemAttributes.Apply(shared, def, statusEffectsAvailable);
+            ItemAttributes.Apply(shared, def, referencesAvailable);
         }
 
         /// <summary>
@@ -252,6 +263,12 @@ namespace RecipeManager
         /// </summary>
         public static void ApplyItemModifications()
         {
+            ApplyItemModifications(withArt: true);
+        }
+
+        /// <param name="withArt">False to leave icons and textures as they are, when only the stats can have changed.</param>
+        private static void ApplyItemModifications(bool withArt)
+        {
             // Several entries, potentially from different config files, are allowed to target the same
             // item. They are grouped so the item is only reset once and then has each of them applied.
             Dictionary<string, List<ItemAddition>> byPrefab = GroupModificationsByPrefab();
@@ -264,7 +281,7 @@ namespace RecipeManager
             {
                 try
                 {
-                    if (ApplyModification(entry.Key, entry.Value)) { modified++; }
+                    if (ApplyModification(entry.Key, entry.Value, withArt)) { modified++; }
                 }
                 catch (Exception ex)
                 {
@@ -275,7 +292,7 @@ namespace RecipeManager
             if (modified > 0) { Logger.LogInfo($"Applied modifications to {modified} existing item(s)."); }
         }
 
-        private static bool ApplyModification(string prefabName, List<ItemAddition> definitions)
+        private static bool ApplyModification(string prefabName, List<ItemAddition> definitions, bool withArt)
         {
             GameObject prefab = ResolveItemPrefab(prefabName);
             if (prefab == null)
@@ -296,7 +313,7 @@ namespace RecipeManager
 
             foreach (ItemAddition def in definitions)
             {
-                ApplyStats(shared, def, statusEffectsAvailable: true);
+                ApplyStats(shared, def, referencesAvailable: true);
                 // Tracked per definition rather than per item, so that a status effect which is not
                 // registered yet gets retried no matter which entry asked for it.
                 ModifiedItems.Add(new TrackedItem
@@ -307,7 +324,7 @@ namespace RecipeManager
                     definition = def
                 });
             }
-            ApplyArt(prefab, prefabName, warnWhenIconless: false);
+            if (withArt) { ApplyArt(prefab, prefabName, warnWhenIconless: false); }
 
             ModifiedPrefabs.Add(prefabName);
             if (ValConfig.EnableDebugMode.Value) { Logger.LogInfo($"Modified {prefabName}."); }
@@ -401,9 +418,9 @@ namespace RecipeManager
         }
 
         /// <summary>
-        /// Second pass for status effects that only become resolvable once the object DB is fully built.
-        /// Hooked to ItemManager.OnItemsRegistered. Deliberately does no allocation, so it is safe to
-        /// run on every object DB rebuild.
+        /// Second pass for status effects that only become resolvable once the object DB is fully built,
+        /// and other mods' prefabs that can be registered late. Hooked to ItemManager.OnItemsRegistered.
+        /// Deliberately does no allocation, so it is safe to run on every object DB rebuild.
         /// </summary>
         public static void ResolveDeferredReferences()
         {
@@ -420,7 +437,7 @@ namespace RecipeManager
                 ItemDrop.ItemData.SharedData shared = GetSharedData(item.itemPrefab);
                 if (shared == null) { continue; }
 
-                ItemAttributes.ApplyStatusEffects(shared, item.definition, warnOnMissing: true);
+                ItemAttributes.ApplyReferences(shared, item.definition, warnOnMissing: true);
             }
         }
 
@@ -436,23 +453,9 @@ namespace RecipeManager
             if (string.IsNullOrEmpty(def.name))
             {
                 Logger.LogWarning($"Item addition for {def.prefab} has no 'name' set. Falling back to the prefab name - set 'name' to give it a proper display name.");
-                return ResolveToken(def.prefab, def.prefab, string.Empty);
+                return Tokens.Resolve(def.prefab, Tokens.ItemPrefix, def.prefab, string.Empty);
             }
-            return ResolveToken(def.name, def.prefab, string.Empty);
-        }
-
-        /// <summary>
-        /// A value starting with '$' is treated as a token the user manages themselves. Anything else is
-        /// registered as the English translation of a generated, per-prefab token.
-        /// </summary>
-        private static string ResolveToken(string configured, string prefab, string suffix)
-        {
-            if (string.IsNullOrEmpty(configured)) { return null; }
-            if (configured.StartsWith("$", StringComparison.Ordinal)) { return configured; }
-
-            string token = $"${TokenPrefix}{prefab.ToLowerInvariant()}{suffix}";
-            LocalizationManager.Instance.GetLocalization().AddTranslation(token, configured);
-            return token;
+            return Tokens.Resolve(def.name, Tokens.ItemPrefix, def.prefab, string.Empty);
         }
 
         private static CustomRecipe BuildRecipe(string modificationName, ItemAddition def)
@@ -461,7 +464,7 @@ namespace RecipeManager
             List<RequirementConfig> requirements = new List<RequirementConfig>();
             // Kept in step with requirements, the requirements built from them come back in the same order
             List<Ingrediant> requirementSources = new List<Ingrediant>();
-            foreach (Ingrediant ingredient in source.ingredients)
+            foreach (Ingrediant ingredient in source.ingredients ?? new List<Ingrediant>())
             {
                 if (ingredient == null || string.IsNullOrEmpty(ingredient.prefab))
                 {
@@ -471,24 +474,30 @@ namespace RecipeManager
                 RequirementConfig requirement = new RequirementConfig
                 {
                     Item = ingredient.prefab,
-                    Amount = ingredient.craftCost,
-                    AmountPerLevel = ingredient.upgradeCost
+                    Amount = ingredient.craftCost ?? 0,
+                    AmountPerLevel = ingredient.upgradeCost ?? 0
                 };
+                // Costs per level replace the per level amount, the requirement still has to look like it costs something
+                if (requirement.Amount == 0 && requirement.AmountPerLevel == 0 && ingredient.upgradeCosts != null && ingredient.upgradeCosts.Count > 0)
+                {
+                    requirement.AmountPerLevel = 1;
+                }
                 // RecipeConfig drops a requirement that costs nothing, which would put the two lists out of step
                 if (!requirement.IsValid()) { continue; }
                 requirements.Add(requirement);
                 requirementSources.Add(ingredient);
             }
 
+            string craftedAt = StationPrefabName(modificationName, source.craftedAt);
             RecipeConfig config = new RecipeConfig
             {
                 Name = $"Recipe_{def.prefab}",
                 Item = def.prefab,
-                Amount = source.craftAmount,
-                CraftingStation = source.craftedAt,
-                RepairStation = string.IsNullOrEmpty(source.repairAt) ? source.craftedAt : source.repairAt,
-                MinStationLevel = source.minStationLevel,
-                RequireOnlyOneIngredient = source.anyOneResource,
+                Amount = source.craftAmount ?? 1,
+                CraftingStation = craftedAt,
+                RepairStation = string.IsNullOrEmpty(source.repairAt) ? craftedAt : StationPrefabName(modificationName, source.repairAt),
+                MinStationLevel = source.minStationLevel ?? 1,
+                RequireOnlyOneIngredient = source.anyOneResource ?? false,
                 Enabled = true,
                 Requirements = requirements.ToArray()
             };
@@ -498,8 +507,38 @@ namespace RecipeManager
             {
                 // A new item has no recipe of its own to copy from, so unset fields take the game's defaults
                 recipe.Recipe.m_resources = RecipeFields.ApplyRequirements(recipe.Recipe.m_resources, requirementSources, null, null);
+                // The requirements come back in the order of their sources. Jotunn fixes their item references in
+                // place later, so these are the objects the game asks for amounts.
+                for (int i = 0; i < requirementSources.Count && i < recipe.Recipe.m_resources.Length; i++)
+                {
+                    if (Patches.RecipeUpgradeCosts.Register(Patches.RecipeUpgradeCosts.FromItems, recipe.Recipe.m_resources[i], requirementSources[i], $"The recipe for '{modificationName}'"))
+                    {
+                        Patches.RecipeUpgradeCosts.ItemUsers.Add(modificationName);
+                    }
+                }
+                if (Patches.RecipeStationLevelCap.Register(Patches.RecipeStationLevelCap.FromItems, recipe.Recipe, source.maxStationLevel, $"The recipe for '{modificationName}'"))
+                {
+                    Patches.RecipeStationLevelCap.ItemUsers.Add(modificationName);
+                }
             }
             return recipe;
+        }
+
+        /// <summary>
+        /// The prefab name Jotunn needs for a station, which a config can also give as its $piece_ name. Null for
+        /// a handcrafted recipe. A name that matches no station yet is passed on as it is, for a station another
+        /// mod has not registered at this point.
+        /// </summary>
+        private static string StationPrefabName(string modificationName, string configured)
+        {
+            if (string.IsNullOrEmpty(configured) || StationRef.IsNone(configured)) { return null; }
+            CraftingStation station = StationRef.Resolve(configured);
+            if (station != null) { return StationRef.NameOf(station); }
+            if (configured.StartsWith("$", StringComparison.Ordinal))
+            {
+                Logger.LogWarning($"The recipe for '{modificationName}' names the station {configured}, which matches no crafting station. Use the station's prefab name, such as piece_workbench.");
+            }
+            return configured;
         }
 
         /// <summary>
@@ -511,6 +550,9 @@ namespace RecipeManager
         public static void ReapplyExistingItems()
         {
             HashSet<string> stillDefined = new HashSet<string>();
+            // Rebuilt from the definitions in use, so the references resolved below are the current ones and not
+            // those of the machine's own files at the last main menu
+            List<TrackedItem> tracked = new List<TrackedItem>();
 
             foreach (KeyValuePair<String, ItemAddition> entry in ItemDefinitions)
             {
@@ -541,7 +583,18 @@ namespace RecipeManager
                 {
                     Logger.LogError($"Could not refresh {def.prefab}. Error: {ex}");
                 }
+                tracked.Add(new TrackedItem
+                {
+                    action = def.action,
+                    prefab = def.prefab,
+                    clonedFrom = def.clonedFrom,
+                    itemPrefab = prefab,
+                    customItem = TrackedItems.Find(item => item.prefab == def.prefab)?.customItem,
+                    definition = def
+                });
             }
+            TrackedItems.Clear();
+            TrackedItems.AddRange(tracked);
 
             foreach (string created in CreatedPrefabs)
             {
@@ -556,39 +609,20 @@ namespace RecipeManager
             ResolveDeferredReferences(TrackedItems);
         }
 
-        public static void UpdateItemAdditions(ItemAdditionCollection itemAdditions)
+        /// <summary>
+        /// Points every item at the status effects again, after they have changed. Stats are put back and written again
+        /// so an effect no longer configured is not kept, and the art is left alone.
+        /// </summary>
+        public static void RefreshStatusEffectReferences()
         {
-            ItemDefinitions.Clear();
-            // A file whose entries are all commented out still parses, but leaves the dictionary null
-            if (itemAdditions?.ItemAdditions == null) { return; }
-            foreach (KeyValuePair<String, ItemAddition> entry in itemAdditions.ItemAdditions)
+            foreach (TrackedItem item in TrackedItems)
             {
-                ItemDefinitions.Add(entry.Key, entry.Value);
+                if (item.definition == null || item.itemPrefab == null) { continue; }
+                try { ApplyStatsOnly(item.itemPrefab, item.definition); }
+                catch (Exception ex) { Logger.LogError($"Could not refresh {item.prefab}. Error: {ex}"); }
             }
-        }
-
-        public static void UpdateItemAdditionsFromList(List<ItemAdditionCollection> collections)
-        {
-            ItemDefinitions.Clear();
-            foreach (ItemAdditionCollection collection in collections)
-            {
-                if (collection?.ItemAdditions == null) { continue; }
-                foreach (KeyValuePair<String, ItemAddition> entry in collection.ItemAdditions)
-                {
-                    if (ItemDefinitions.ContainsKey(entry.Key))
-                    {
-                        Logger.LogWarning($"Item entry '{entry.Key}' is defined more than once, only the first definition will be used.");
-                        continue;
-                    }
-                    ItemDefinitions.Add(entry.Key, entry.Value);
-                }
-            }
-        }
-
-        public static void UpdateItemAdditionsFromRPC(string yaml)
-        {
-            ItemAdditionCollection collection = ValConfig.yamldeserializer.Deserialize<ItemAdditionCollection>(yaml);
-            UpdateItemAdditions(collection);
+            ApplyItemModifications(withArt: false);
+            ResolveDeferredReferences(TrackedItems);
         }
     }
 }
