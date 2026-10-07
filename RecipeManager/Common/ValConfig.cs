@@ -217,6 +217,7 @@ namespace RecipeManager.Common
 # RM_Recipes_PrintAll writes the recipes in the game out to ObjectDBRecipes.yaml, to copy entries from.
 #     craftAmount: 1                       # <- How many items one craft makes
 #     repairAt: piece_workbench            # <- A second station that can repair the item, besides the one it is crafted at
+#     maxStationLevel: 3                   # <- The highest station level upgrading needs, uses a game patch
 #     enabled: false                       # <- Keeps the recipe switched off
 #     upgradeOnly: true                    # <- Only listed in a station's upgrade tab, never the craft tab. The Deep North gold gear uses this
 #     listSortWeight: 100                  # <- Position in the crafting list, lower comes first. The game uses 100, fishing bait 500 and up
@@ -226,6 +227,7 @@ namespace RecipeManager.Common
 #         - prefab: TrollHide
 #           recover: true                  # <- Whether part of this is refunded when the Forge of Potential breaks the item
 #           anyOneExtraAmount: 1           # <- With anyOneResource, extra items crafted when this is the ingredient used
+#           upgradeCosts: {2: 5, 3: 10}    # <- What upgrading to each level costs, by the level reached. Uses a game patch
 ");
 
             WriteDefaultFile(Pieces, Pieces.FindFiles().Count, @"############################################################################
@@ -236,7 +238,7 @@ namespace RecipeManager.Common
 #
 # pieceModifications:                                      # <- This is the top level key, it is required
 #  modify_the_bed:                                         # <- REQUIRED The name of this modification, it should be unique but is for your information
-#    action: Modify                                        # <- REQUIRED This is the action applied can be [Enable, Disable, Modify]
+#    action: Modify                                        # <- REQUIRED This is the action applied can be [Enable, Disable, Modify, Add]
 #    prefab: bed                                           # <- REQUIRED This is the prefab that the action will be applied to
 #    requirements:                                         # <- The cost to build this. Left out keeps the cost, [] makes the piece free
 #    - prefab: Wood                                        # <- Each requirement entry requires a prefab name, you can find item prefabs on the valheim wiki
@@ -245,7 +247,7 @@ namespace RecipeManager.Common
 #    requiredToPlaceCraftingStation: piece_workbench       # <- The crafting station used to place this item, if it is set to 'none' it will remove the station requirement
 #    allowedInDungeon: false                               # <- If you can build this inside dungeons
 #    canBeDeconstructed: true                              # <- If this can be broken with middle mouse
-#    pieceCategory: Furniture                              # <- The build tab this is listed in: Misc, Crafting, BuildingWorkbench, BuildingStonecutter, Furniture, Feasts, Food or Meads
+#    pieceCategory: Furniture                              # <- The build tab this is listed in, such as Misc, Crafting, BuildingWorkbench or Furniture. Any other name makes a tab of that name
 #    comfortAmount: 1                                      # <- If above 0 this item will provide comfort
 #    comfortGroup: Bed                                     # <- The comfort group this is a part of
 #    isUpgradeForStation: false                            # <- If this piece is considered an upgrade for a crafting station
@@ -274,7 +276,9 @@ namespace RecipeManager.Common
 #      health: 800
 #    container:                                            # <- Also station, stationExtension and fireplace, for pieces that are one
 #      width: 8
-#      height: 4");
+#      height: 4
+#
+# An icon at BepInEx\config\RecipeManager\Textures\<prefab>\icon.png replaces the piece's icon.");
 
             WriteDefaultFile(Conversions, Conversions.FindFiles().Count, @"############################################################################
 # Conversion Manipulation Config
@@ -286,7 +290,7 @@ namespace RecipeManager.Common
 #                                    #    Remove takes out the conversions for the inputs listed
 #     prefab: charcoal_kiln
 #     maxOres: 30                    # <- Smelters, how many items it holds
-#     maxFuel: 0                     # <- Smelters and cooking stations, how much fuel it holds. 0 needs no fuel
+#     maxFuel: 0                     # <- Smelters and cooking stations, how much fuel it holds. 0 makes a smelter need no fuel
 #     fuelPerProduct: 1              # <- Smelters, fuel used for each item made
 #     conversionTime: 10             # <- Smelters, seconds per item. Fermenters, seconds per batch
 #     fuelItem: Wood                 # <- Smelters and cooking stations
@@ -342,8 +346,9 @@ namespace RecipeManager.Common
 #       regen: 2                             # <- Health regenerated per tick while this food is active
 #       eatAnimTime: 1                       # <- How long the eating animation takes
 #       isDrink: false                       # <- Whether this is drunk rather than eaten
-#       consumeStatusEffect: ''              # <- The name of an EXISTING status effect to apply when consumed
-#     recipe:                                # <- Optional, leave it out for an item that is not crafted
+#       consumeStatusEffect: ''              # <- A status effect to apply when consumed, one StatusEffects.yaml adds works too
+#     recipe:                                # <- Optional and only for Add, leave it out for an item that is not crafted.
+#                                            #    An existing item's recipe is changed in Recipes.yaml
 #       craftedAt: piece_cauldron            # <- The crafting station, leave it empty for handcrafting
 #       repairAt: ''                         # <- A second station that can repair the item
 #       minStationLevel: 1                   # <- The required crafting station level
@@ -356,8 +361,9 @@ namespace RecipeManager.Common
 #       - prefab: Honey
 #         craftCost: 2
 #         upgradeCost: 0
-#       # Ingredients also take upgraderResource, recover and anyOneExtraAmount, see Recipes.yaml. A cloned weapon
-#       # or armor needs an upgraderResource idol (Upgrader0Weapon..Upgrader7Armor) to be upgradeable at the Forge of Potential.
+#       # Ingredients also take upgraderResource, recover, anyOneExtraAmount and upgradeCosts, and the recipe takes
+#       # maxStationLevel, see Recipes.yaml. A cloned weapon or armor needs an upgraderResource idol
+#       # (Upgrader0Weapon..Upgrader7Armor) to be upgradeable at the Forge of Potential.
 #
 # ---------------------------------------------------------------------------
 # Weapon, armor and set stats. These work the same on an added item and on one you are modifying.
@@ -385,7 +391,7 @@ namespace RecipeManager.Common
 #       movementModifier: -0.05              # <- Speed change while equipped, -0.05 is 5% slower
 #       eitrRegenModifier: 0.1
 #     resistances:                           # <- Replaces the whole resistance list, use [] to clear it
-#     - type: Fire                           # <- Blunt, Slash, Pierce, Chop, Pickaxe, Fire, Frost, Lightning, Poison or Spirit
+#     - type: Fire                           # <- Blunt, Slash, Pierce, Chop, Pickaxe, Fire, Frost, Lightning, Poison, Spirit or NonPlayer
 #       modifier: VeryResistant              # <- Normal, SlightlyResistant, Resistant, VeryResistant, SlightlyWeak, Weak, VeryWeak, Immune or Ignore
 #     statusEffects:
 #       equipped: SetEffect_TrollArmor       # <- Applied for as long as the item is equipped
@@ -453,7 +459,7 @@ namespace RecipeManager.Common
 #     tooltip: Hits harder and carries more.
 #     duration: 0                            # <- Seconds it lasts, 0 lasts for as long as something keeps it on, like a set bonus
 #     carryWeight: 50                        # <- Weight added to what the player can carry
-#     maxHealth: 25                          # <- Added to maximum health while it lasts, also maxStamina and maxEitr
+#     maxHealth: 25                          # <- Added to maximum health while it lasts, also maxStamina and maxEitr. Uses a game patch
 #     damage:
 #       skill: All                           # <- The weapon skill whose attacks it boosts, All for every attack
 #       multiplier: 1.1                      # <- 1.1 is 10% more damage
@@ -470,8 +476,9 @@ namespace RecipeManager.Common
 #     stamina:
 #       regenMultiplier: 1.6
 #
-# More groups: messages, staminaUse, eitr, adrenaline, armor, stagger, skills, noise and stealth. Every one
-# an effect uses is in the dump. The icon is loaded from BepInEx\config\RecipeManager\Textures\<prefab>\icon.png");
+# More settings: category, cooldown, hidden, attributes, messages, staminaUse, eitr, adrenaline, armor, stagger,
+# skills, noise and stealth. Every one an effect uses is in the dump, and the README lists them all.
+# The icon is loaded from BepInEx\config\RecipeManager\Textures\<prefab>\icon.png");
         }
 
         /// <summary>

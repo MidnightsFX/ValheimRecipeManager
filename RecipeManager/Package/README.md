@@ -22,7 +22,7 @@ Pieces are almost anything that is placed. Everything built with the hammer, pla
 - Dump any prefab's icons and textures to disk so you can repaint them
 - Convert WackysDatabase recipe, item, piece and status effect files into RecipeManager files
 
-## Upgrading to 0.7
+## Upgrading to 0.11
 
 A `Modify` now only changes what it sets, for recipes and pieces as it already did for items. Everything it
 leaves out keeps the value the recipe or piece already has. Two things behave differently because of that:
@@ -38,7 +38,8 @@ leaves out keeps the value the recipe or piece already has. Two things behave di
 Entries copied out of the `PrintAll` dumps list every value, so they work the same as before.
 
 Conversions changed too: an `Add` for an input the station already converts now updates that conversion
-instead of adding a second one the station would never use.
+instead of adding a second one the station would never use. An entry also only changes the station it names,
+so `piece_cookingstation` no longer changes `piece_cookingstation_iron` as well.
 
 ## Console commands
 Each part of the mod has commands to write what is in the game out to a file, and to apply your changes
@@ -221,6 +222,7 @@ Left out of a `Modify`, each of these keeps the value the recipe already had, an
     listSortWeight: 100                  # <- Position in the crafting list, lower comes first. The game uses 100, fishing bait 500 and up
     qualityResultAmountMultiplier: 3     # <- With anyOneResource, how much each quality level of the ingredient used adds
     recipe:
+      noRecipeCost: true                 # <- Free to craft, the ingredients are ignored. The same as ingredients: []
       ingredients:
         - prefab: TrollHide
           upgraderResource: false        # <- true for the Forge of Potential idol, see the example above
@@ -316,7 +318,7 @@ recipeModifications:
 
 ## Pieces
 
-Piece modifications are stored at `\BepInEx\config\RecipeManager\Pieces.yaml`. This file will be generated on the first run, with an explanation of every field, if it does not already exist.
+Piece modifications are stored at `\BepInEx\config\RecipeManager\Pieces.yaml`. This file will be generated on the first run, with an explanation of the most used fields, if it does not already exist.
 
 A `Modify` changes only what it sets, every field it leaves out keeps the piece's current value.
 `requirements` replaces the whole build cost when it is given, and `requirements: []` makes a piece free. A
@@ -418,7 +420,7 @@ pieceModifications:
       ashDamageImmune: false
       ashDamageResist: false
       snowDamageImmune: false
-      resistances: []
+      resistances: [{type: Fire, modifier: Resistant}]  # <- Only the damage types listed change
     station:
       name: $piece_forge                   # <- What recipes and upgrades know the station by
       discoveryRange: 4                    # <- How close a player has to come to learn it
@@ -884,7 +886,7 @@ Add a "Honey bread" food, made from bread and honey at the cauldron
 ```yaml
 itemAdditions:
   HoneyBread:                              # <- The name of this addition, it is for your information but SHOULD BE UNIQUE
-    action: Add                            # <- REQUIRED This is the action applied, can be [Add, Remove]
+    action: Add                            # <- REQUIRED This is the action applied, can be [Add, Modify, Remove]
     prefab: HoneyBread                     # <- REQUIRED The prefab name of the NEW item, must be globally unique
     clonedFrom: Bread                      # <- REQUIRED The existing prefab to copy
     name: Honey Bread                      # <- The display name. Start it with '$' to use your own localization token
@@ -934,6 +936,8 @@ the ones sitting in chests and inventories.
 Anything you leave out keeps its current value, so a modification only has to list what actually
 differs. The reverse is true too: deleting a line and running `RM_Items_Reload` restores that item's
 original value rather than leaving the last number you set.
+
+A `recipe:` block only applies to an item you add. An existing item's recipe is changed in `Recipes.yaml`.
 
 Make the iron sword hit harder and set things on fire
 <details>
@@ -1266,7 +1270,7 @@ exception, where `1` is normal.
     activationAnimation: gpower            # <- Guardian powers, the animation played
     messages:
       start: You feel strong
-      startType: Center                    # <- TopLeft or Center
+      startType: Center                    # <- TopLeft or Center, also stopType and repeatType
       stop: ''
       repeat: ''
       repeatInterval: 0
@@ -1338,9 +1342,9 @@ one of these settings in every file, so nothing is dropped silently.
 ## FAQ
 - Q: Why is my recipe not showing up?
   A. Ensure that the recipe uses the action 'Modify' or 'Add'. An entry with 'Enable' only switches a recipe on, and does nothing to one that is already on.
-- Q: Since updating to 0.7 my modified recipe is crafted at a station, or my modified piece costs something
+- Q: Since updating to 0.11 my modified recipe is crafted at a station, or my modified piece costs something
   A. A `Modify` now keeps everything it leaves out. Write `craftedAt: none` for a handcrafted recipe, and
-  `requirements: []` for a free piece. See [Upgrading to 0.7](#upgrading-to-07).
+  `requirements: []` for a free piece. See [Upgrading to 0.11](#upgrading-to-011).
 - Q: I edited an armor or weapon recipe and the idol became part of the crafting cost, or the item disappeared from the Forge of Potential
   A. Update to 0.6.5 or later. The idol (`Upgrader1Armor` and the like) is an upgrader resource, which only the Forge of Potential charges and which is what puts the item on the Forge. Entries written by older versions are recognised automatically, and a fresh `RM_Recipes_PrintAll` marks the idol with `upgraderResource: true`. The same update keeps the Deep North gold gear upgrade-only and keeps fishing bait in its place in the crafting list.
 - Q: My yaml has an error about the `refund` key
@@ -1375,10 +1379,10 @@ one of these settings in every file, so nothing is dropped silently.
 - More recipe validation
 - ~~Conversion modifications (like ores for ingots)~~ (added in 0.5.0)
 - ~~Stat editing for weapons, armor and tools~~ (added in 0.6.0)
-- ~~Import from WackysDatabase~~ (added in 0.7.0)
-- ~~More item stats: durability, max quality, attack costs and the like~~ (added in 0.8.0)
-- ~~Upgrade costs for each quality level, and capping the station level a recipe needs~~ (added in 0.9.0)
-- ~~Custom status effects~~ (added in 0.10.0)
+- ~~Import from WackysDatabase~~ (added in 0.11.0)
+- ~~More item stats: durability, max quality, attack costs and the like~~ (added in 0.11.0)
+- ~~Upgrade costs for each quality level, and capping the station level a recipe needs~~ (added in 0.11.0)
+- ~~Custom status effects~~ (added in 0.11.0)
 - ~~Adding pieces, moving them between tools, and changing their health, containers, fires and stations~~ (added in 0.11.0)
 
 
