@@ -16,6 +16,7 @@ Pieces are almost anything that is placed. Everything built with the hammer, pla
 - Enable Pieces
 - Modify Pieces
 - Add pieces by copying one, move pieces between tools and tabs, and change their placement rules, health, containers, fires and stations
+- Build pieces out of items, such as trophies you hang on the wall, that give the item back when removed
 - Add new items by cloning an existing item, with their own name, stats, icon and textures
 - Modify the stats of items that already exist, including vanilla weapons and armor, down to their attacks, durability and upgrade levels
 - Add new status effects and change the ones that exist
@@ -340,6 +341,54 @@ have to name it by its prefab name.
 > Like items, adding or removing a piece needs a game restart (or a trip back to the main menu). Everything
 > else applies live with `RM_Pieces_Reload`.
 
+### Pieces made from an item
+
+Instead of `clonedFrom`, an `Add` can set `fromItem` to an item that has a display model, the one an item stand
+shows: trophies, weapons, shields, helmets and the like. The piece is that model, posed the way it would be on an
+item stand but without the stand. `mount: Wall` (the default) copies the wall item stand, `mount: Floor` the one
+that stands on the ground or a table. Everything else is an ordinary piece, so it can be damaged, repaired, removed
+with the hammer and protected by a ward, it needs something to rest on, and every setting above and below works on it.
+
+Building it uses up the item, and removing or destroying it gives the item back. That cost is always there:
+`requirements` adds to it, and an entry that leaves the item out of its list, or gives it no refund, gets it put back.
+Left out, the name, description and icon are the item's, and the station, health and sounds are the item stand's.
+
+Like an item stand, it gives 1 comfort in the `Display` group, where only one piece counts. Set `comfortGroup: None`
+to have each different item count on its own. The game counts pieces with the same name once, so a second copy of
+the same trophy adds nothing.
+
+- An item with upgrade levels or durability comes back as a new one at level 1.
+- An item another mod adds is only found if that mod has added it by the time the main menu loads.
+- An item whose model carries a glow or sparkle effect may not show in the build preview. The placed piece shows it.
+- Looking at it shows no text, as with most pieces.
+
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+pieceModifications:
+  trophy_eikthyr:
+    action: Add
+    prefab: piece_trophy_eikthyr           # <- The new piece's prefab name, it has to be unique
+    fromItem: TrophyEikthyr                # <- The item it is made from, and costs
+    mount: Wall                            # <- Wall or Floor
+    pieceTable: Hammer
+    pieceCategory: Furniture
+    comfortAmount: 1
+    comfortGroup: None                     # <- Each different trophy counts on its own
+  trophy_elder:
+    action: Add
+    prefab: piece_trophy_elder
+    fromItem: TrophyTheElder
+    mount: Floor
+    comfortAmount: 1
+    comfortGroup: None
+    requirements:                          # <- Added to the trophy, which is always part of the cost
+    - prefab: FineWood
+      amount: 2
+```
+</details>
+
 ### Tools, tabs and placement
 
 `pieceTable` on a `Modify` moves a piece to another tool. `usage` sets the build menu tags the game sorts
@@ -412,7 +461,7 @@ pieceModifications:
       health: 400
       materialType: Wood                   # <- Wood, Stone, Iron, HardWood, Marble, Ashstone, Ancient, Ice or Timberwood, decides how much it can carry
       noRoofWear: true                     # <- Spared the wear of standing in the rain
-      noSupportWear: true                  # <- Spared the wear of having little support
+      noSupportWear: true                  # <- Despite the name, true means it needs support and breaks without it
       supports: true                       # <- Whether other pieces can rest on it
       triggerPrivateArea: true             # <- Whether damaging it alerts a nearby ward
       burnable: true
@@ -1391,3 +1440,8 @@ Ensure the downloaded .dll is placed inside your /bepinex/plugins folder.
 
 Please note this mod does nothing until configured.
 
+---
+
+If you enjoy my mods donations are appreciated. My mods will never be paid and donations are not required.
+
+<a href="https://ko-fi.com/midnightsfx"><img height="36" src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support me on Ko-fi"></a>

@@ -1,3 +1,9 @@
+ **0.12.0**
+---
+```
+- Pieces can now be built from an item, such as a trophy hung on a wall, and give the item back when removed or destroyed.
+```
+
  **0.11.0**
 ---
 ```

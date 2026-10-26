@@ -295,6 +295,9 @@ namespace RecipeManager
                 // Left out keeps the cost, an empty list makes the piece free
                 if (def.requirements != null) {
                     tpiece.updatedRequirements = BuildRequirements(piece.Key, def.requirements, OriginalResources(def.prefab, tpc));
+                    if (def.action == PieceAction.Add && !string.IsNullOrEmpty(def.fromItem)) {
+                        tpiece.updatedRequirements = KeepItemRefunded(piece.Key, def.fromItem, tpiece.updatedRequirements);
+                    }
                 }
 
                 string station = def.RequiredToPlaceCraftingStation;
@@ -334,6 +337,9 @@ namespace RecipeManager
                 }
                 if (def.action == PieceAction.Modify && !string.IsNullOrEmpty(def.clonedFrom)) {
                     Logger.LogWarning($"Piece modification '{piece.Key}' sets clonedFrom on a Modify, only an Add copies a piece. It is ignored.");
+                }
+                if (def.action == PieceAction.Modify && (!string.IsNullOrEmpty(def.fromItem) || def.mount.HasValue)) {
+                    Logger.LogWarning($"Piece modification '{piece.Key}' sets fromItem or mount on a Modify, only an Add makes a piece from an item. They are ignored.");
                 }
                 // Finally add the tracked piece modifications
                 TrackedPieces.Add(tpiece);
@@ -399,6 +405,31 @@ namespace RecipeManager
                 Logger.LogDebug($"Building requirement with res:{tid.name} amount:{req.amount}");
             }
             return updatedreq.ToArray();
+        }
+
+        /// <summary>
+        /// A piece made from an item always costs at least one of it and gives it back, whatever else the entry lists,
+        /// so removing or destroying the piece never loses the item.
+        /// </summary>
+        private static Piece.Requirement[] KeepItemRefunded(string key, string itemName, Piece.Requirement[] requirements)
+        {
+            GameObject prefab = PrefabManager.Instance.GetPrefab(itemName);
+            ItemDrop item = prefab != null ? prefab.GetComponent<ItemDrop>() : null;
+            // Reported when the piece was made, and a piece that could not be made is not tracked
+            if (item == null) { return requirements; }
+            Piece.Requirement listed = Array.Find(requirements, req => req.m_resItem != null && req.m_resItem.name == item.name);
+            if (listed == null) {
+                Logger.LogInfo($"Piece modification '{key}' is made from {itemName}, which is always part of its cost so the piece can give it back. One is added to its requirements.");
+                List<Piece.Requirement> withItem = new List<Piece.Requirement> { ItemPieces.Refunded(item) };
+                withItem.AddRange(requirements);
+                return withItem.ToArray();
+            }
+            if (!listed.m_recover || listed.m_amount < 1) {
+                Logger.LogInfo($"Piece modification '{key}' is made from {itemName}, which the piece always gives back, so its requirement is set to at least one and refunded.");
+                listed.m_recover = true;
+                listed.m_amount = Math.Max(1, listed.m_amount);
+            }
+            return requirements;
         }
 
         /// <summary>

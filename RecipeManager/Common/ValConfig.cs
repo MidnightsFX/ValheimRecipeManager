@@ -278,6 +278,16 @@ namespace RecipeManager.Common
 #      width: 8
 #      height: 4
 #
+# 'fromItem' instead of clonedFrom makes the piece out of an item's display model, posed as on an item stand. It costs
+# the item and gives it back when removed or destroyed:
+#  trophy_eikthyr:
+#    action: Add
+#    prefab: piece_trophy_eikthyr
+#    fromItem: TrophyEikthyr
+#    mount: Wall                                           # <- Wall or Floor, the item stand it is posed like
+#    comfortAmount: 1
+#    comfortGroup: None                                    # <- Each different trophy gives its own comfort
+#
 # An icon at BepInEx\config\RecipeManager\Textures\<prefab>\icon.png replaces the piece's icon.");
 
             WriteDefaultFile(Conversions, Conversions.FindFiles().Count, @"############################################################################

@@ -12,6 +12,13 @@ namespace RecipeManager.Common
             /// <summary>For an Add, the existing piece to copy. The new piece keeps its model and every setting.</summary>
             public string clonedFrom { get; set; }
             /// <summary>
+            /// For an Add, an item whose display model, the one an item stand shows, the piece is made of. Used instead of
+            /// clonedFrom. Building it uses up the item, and removing or destroying it gives the item back.
+            /// </summary>
+            public string fromItem { get; set; }
+            /// <summary>With fromItem, which item stand's pose the model takes. Left out, the wall stand's.</summary>
+            public ItemMount? mount { get; set; }
+            /// <summary>
             /// The tool the piece is built with, by the tool's prefab name (Hammer, Hoe, Cultivator) or its piece
             /// table's. A Modify moves the piece out of the tools it is in now.
             /// </summary>
@@ -55,6 +62,15 @@ namespace RecipeManager.Common
             public FireplaceSettings fireplace { get; set; }
         }
 
+        /// <summary>The item stand a piece made from an item copies its pose from.</summary>
+        public enum ItemMount
+        {
+            /// <summary>Hung on a wall, as on the item stand.</summary>
+            Wall,
+            /// <summary>Set on the ground or a table, as on the horizontal item stand.</summary>
+            Floor
+        }
+
         /// <summary>How the piece wears and breaks.</summary>
         [DataContract]
         public class WearNTearSettings
@@ -64,7 +80,10 @@ namespace RecipeManager.Common
             public WearNTear.MaterialType? materialType { get; set; }
             /// <summary>Whether it is spared the wear of standing in the rain.</summary>
             public bool? noRoofWear { get; set; }
-            /// <summary>Whether it is spared the wear of having little support.</summary>
+            /// <summary>
+            /// Whether it needs support. The game's name says the opposite: true makes it check, and break when nothing
+            /// holds it up, false means it never falls.
+            /// </summary>
             public bool? noSupportWear { get; set; }
             /// <summary>Whether other pieces can rest on it.</summary>
             public bool? supports { get; set; }
