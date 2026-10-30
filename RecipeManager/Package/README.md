@@ -1004,6 +1004,7 @@ itemAdditions:
       damagePerLevel:
         slash: 5
       backstabBonus: 4
+      hitVariant: 2                          # <- Green fire, leave it out for red
     statusEffects:
       onHit: Burning                         # <- Applied to whatever the sword hits
       onHitChance: 0.5
@@ -1052,6 +1053,7 @@ sword can be given its own damage profile the same way a vanilla one can.
 | `skill` | The skill the weapon trains and uses, such as `Swords`, `Bows` or `Crossbows`. A skill another mod adds works too. |
 | `ammoType` | The kind of ammo a bow or crossbow fires, or the kind an ammo item is: `$ammo_arrows` or `$ammo_bolts` for the game's own. |
 | `dodgeable` / `blockable` | Whether its hits can be dodged, and blocked. |
+| `hitVariant` | The color of the fire and lightning its hits set off. Fire is `0` red, `1` blue and `2` green. Lightning is `0` the usual and `1` red. `-1` plays all of them at once, which is what most items start with. Leave it out and an item you add or change that is at `-1` and deals fire or lightning damage uses `0`. Ammo only uses its own when it has an `onHit` status effect, otherwise the bow's counts. |
 | `spawnOnHit` / `spawnOnHitTerrain` | A prefab spawned where it hits something, and where it hits the ground. `None` for nothing. |
 | `primaryAttack` / `secondaryAttack` | The weapon's two attacks, see [More item stats](#more-item-stats). |
 

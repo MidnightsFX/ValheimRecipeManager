@@ -430,6 +430,11 @@ namespace RecipeManager.Common
             public bool? dodgeable { get; set; }
             /// <summary>Whether its hits can be blocked.</summary>
             public bool? blockable { get; set; }
+            /// <summary>
+            /// Which look of fire and lightning its hits set off. Fire is 0 red, 1 blue, 2 green, lightning is 0 the usual
+            /// and 1 red. -1 plays every look at once. Unset, an item at -1 with fire or lightning damage gets 0.
+            /// </summary>
+            public int? hitVariant { get; set; }
             /// <summary>A prefab spawned where it hits something, 'none' for nothing.</summary>
             public string spawnOnHit { get; set; }
             /// <summary>A prefab spawned where it hits the ground, 'none' for nothing.</summary>

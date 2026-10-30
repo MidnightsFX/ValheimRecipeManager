@@ -171,6 +171,8 @@ namespace RecipeManager
                     ammoType = string.IsNullOrEmpty(shared.m_ammoType) ? null : shared.m_ammoType,
                     dodgeable = shared.m_dodgeable,
                     blockable = shared.m_blockable,
+                    // Left out at the game's default, so a dump copied into a config does not stop fire and lightning defaulting to 0
+                    hitVariant = shared.m_hitVariant >= 0 ? shared.m_hitVariant : (int?)null,
                     spawnOnHit = shared.m_spawnOnHit != null ? shared.m_spawnOnHit.name : null,
                     spawnOnHitTerrain = shared.m_spawnOnHitTerrain != null ? shared.m_spawnOnHitTerrain.name : null
                 };

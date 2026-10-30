@@ -203,6 +203,7 @@ namespace RecipeManager
             ItemAttributes.RestoreOriginal(def.prefab, shared);
 
             ApplyStats(shared, def, referencesAvailable: false);
+            ItemAttributes.ApplyDefaultHitVariant(shared, new[] { def });
             return true;
         }
 
@@ -324,6 +325,7 @@ namespace RecipeManager
                     definition = def
                 });
             }
+            ItemAttributes.ApplyDefaultHitVariant(shared, definitions);
             if (withArt) { ApplyArt(prefab, prefabName, warnWhenIconless: false); }
 
             ModifiedPrefabs.Add(prefabName);

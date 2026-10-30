@@ -28,6 +28,9 @@ namespace RecipeManager.Common
         /// <summary>Value that clears a status effect or prefab slot instead of naming one.</summary>
         private const string ClearToken = "none";
 
+        /// <summary>The first variant of the game's fire and lightning effects: the red fire and the usual lightning.</summary>
+        private const short DefaultHitVariant = 0;
+
         /// <summary>The damage types HitData.DamageModifiers.Apply actually understands.</summary>
         internal static readonly HashSet<HitData.DamageType> ResistableTypes = new HashSet<HitData.DamageType>
         {
@@ -169,6 +172,11 @@ namespace RecipeManager.Common
             if (weapon.toolTier.HasValue) { shared.m_toolTier = weapon.toolTier.Value; }
             if (weapon.dodgeable.HasValue) { shared.m_dodgeable = weapon.dodgeable.Value; }
             if (weapon.blockable.HasValue) { shared.m_blockable = weapon.blockable.Value; }
+            if (weapon.hitVariant.HasValue)
+            {
+                if (IsHitVariant(weapon.hitVariant.Value)) { shared.m_hitVariant = (short)weapon.hitVariant.Value; }
+                else { Logger.LogWarning($"{def.prefab} has a hitVariant of {weapon.hitVariant.Value}, it has to be -1 or more and will be ignored."); }
+            }
             if (weapon.ammoType != null) { shared.m_ammoType = weapon.ammoType; }
             if (!string.IsNullOrEmpty(weapon.skill))
             {
@@ -185,6 +193,32 @@ namespace RecipeManager.Common
             }
             ApplyAttack(shared.m_attack, weapon.primaryAttack, def.prefab, "primaryAttack");
             ApplyAttack(shared.m_secondaryAttack, weapon.secondaryAttack, def.prefab, "secondaryAttack");
+        }
+
+        /// <summary>
+        /// Which variant of the fire and lightning effects the item's hits set off. Most items are at -1, which plays
+        /// every variant at once on a creature: since the game added blue and green fire, that is all three fires
+        /// together, and the usual and red lightning together. An item this mod adds or changes that deals either gets
+        /// the first variant instead. One that has its own variant keeps it, and so does one whose definitions pick one.
+        /// Runs once every definition for the item is applied, so a definition picking -1 is not undone by another.
+        /// </summary>
+        public static void ApplyDefaultHitVariant(ItemDrop.ItemData.SharedData shared, IEnumerable<ItemAddition> definitions)
+        {
+            if (shared == null || shared.m_hitVariant >= 0) { return; }
+            foreach (ItemAddition def in definitions)
+            {
+                int? configured = def?.weapon?.hitVariant;
+                if (configured.HasValue && IsHitVariant(configured.Value)) { return; }
+            }
+
+            bool elemental = shared.m_damages.m_fire > 0f || shared.m_damages.m_lightning > 0f
+                || shared.m_damagesPerLevel.m_fire > 0f || shared.m_damagesPerLevel.m_lightning > 0f;
+            if (elemental) { shared.m_hitVariant = DefaultHitVariant; }
+        }
+
+        private static bool IsHitVariant(int value)
+        {
+            return value >= -1 && value <= short.MaxValue;
         }
 
         /// <summary>DamageTypes is a struct, so this takes it by reference and the caller writes it back.</summary>
@@ -656,6 +690,7 @@ namespace RecipeManager.Common
             private string ammoType;
             private bool dodgeable;
             private bool blockable;
+            private short hitVariant;
             private GameObject spawnOnHit;
             private GameObject spawnOnHitTerrain;
             // Null until this mod first writes to the item's attacks, see CaptureAttacks
@@ -748,6 +783,7 @@ namespace RecipeManager.Common
                     ammoType = shared.m_ammoType,
                     dodgeable = shared.m_dodgeable,
                     blockable = shared.m_blockable,
+                    hitVariant = shared.m_hitVariant,
                     spawnOnHit = shared.m_spawnOnHit,
                     spawnOnHitTerrain = shared.m_spawnOnHitTerrain,
 
@@ -839,6 +875,7 @@ namespace RecipeManager.Common
                 shared.m_ammoType = ammoType;
                 shared.m_dodgeable = dodgeable;
                 shared.m_blockable = blockable;
+                shared.m_hitVariant = hitVariant;
                 shared.m_spawnOnHit = spawnOnHit;
                 shared.m_spawnOnHitTerrain = spawnOnHitTerrain;
                 attack?.WriteTo(shared.m_attack);

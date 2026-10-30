@@ -1,3 +1,9 @@
+ **0.12.1**
+---
+```
+- Weapons a config adds or changes can now select the fire or lightning variant they use (default red fire, blue lightning)
+```
+
  **0.12.0**
 ---
 ```
