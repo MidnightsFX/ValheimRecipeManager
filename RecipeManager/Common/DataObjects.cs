@@ -110,7 +110,7 @@ namespace RecipeManager.Common
         {
             public string fromPrefab { get; set; }
             public string toPrefab { get; set; }
-            /// <summary>Fermenters only, how many items one input makes. Left out, it keeps what the station has for the same input, or the game's 4.</summary>
+            /// <summary>Fermenters and smelter type stations, how many items one input makes. Left out, it keeps what the station has for the same input, or the game's 4 from a fermenter and 1 from a smelter.</summary>
             public int? amount { get; set; }
             /// <summary>Cooking stations only, seconds to cook. Left out, it keeps what the station has for the same input, or the game's 10.</summary>
             public float? cookTime { get; set; }

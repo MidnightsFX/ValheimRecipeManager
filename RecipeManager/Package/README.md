@@ -74,8 +74,8 @@ It is not recommended to use Vortex mod manager, however using vortex hardlink o
 Almost everything this mod does is data written onto the game's own items, recipes and pieces. A few
 settings have nothing in the game to write to, and need a small patch instead. Each patch is only applied
 while a loaded config uses one of its settings, and taken off again when none does. Leave those settings
-out and the game is not patched at all. A dedicated server never applies them, the game only reads these
-settings on the players' machines.
+out and the game is not patched at all. A dedicated server only applies `SmelterOutputAmount`, since it can be the
+one running a station. The game only reads the other settings on the players' machines.
 
 | Setting | Patch |
 | --- | --- |
@@ -83,6 +83,7 @@ settings on the players' machines.
 | a recipe's `maxStationLevel`, in either file | `RecipeStationLevelCap` |
 | a status effect's `maxHealth`, `maxStamina` or `maxEitr` | `StatusEffectStatBonus` |
 | a piece's `minStationLevel` | `PieceStationLevel` |
+| the `amount` of a smelter type station's conversion | `SmelterOutputAmount` |
 
 `RM_Patches` lists every patch, whether it is on, and which config entries use it. It works without
 `devcommands`.
@@ -589,8 +590,9 @@ Any field left out of a conversion modification keeps the station's own value, `
 - `maxFuel: 0` makes a smelter type station need no fuel at all.
 - `fuelPerProduct: 0` means fuel still has to be loaded, but it is never used up.
 - `maxOres: 0` makes the station accept no items to convert.
-- Smelter type stations produce at most one item per second, and burn `fuelPerProduct / conversionTime` fuel each second. A `conversionTime` below 1 would only burn more fuel per item, so it is raised to 1. A `conversionTime` of 0 is ignored.
-- `amount` is for fermenters and `cookTime` is for cooking stations, smelter type stations always make one item. Left out, a conversion keeps the amount or cook time the station already has for that input, or uses the game's own 4 items and 10 seconds for a new one.
+- Smelter type stations finish at most one input per second, and burn `fuelPerProduct / conversionTime` fuel each second. A `conversionTime` below 1 would only burn more fuel per input, so it is raised to 1. A `conversionTime` of 0 is ignored.
+- `amount` is how many items one input makes, for fermenters and smelter type stations. `cookTime` is for cooking stations, which always make one item. Left out, a conversion keeps the amount or cook time the station already has for that input, or uses the game's own values for a new one: 4 items from a fermenter, 1 from a smelter type station, and 10 seconds.
+- On a smelter type station `amount` uses a [game patch](#game-patches). One input still takes one `conversionTime` and one `fuelPerProduct` however many items it makes, and what does not fit in one stack comes out as several.
 - `overCookedItem` sets what a cooking station turns food into when it is left on too long.
 - `spawnStack` and `requiresRoof` are for smelter type stations: whether what it makes comes out as one stack,
   and whether it only works under a roof. `requiresFire` is for cooking stations, whether it needs a fire under it.
@@ -659,6 +661,21 @@ conversionModifications:
     maxFuel: 50
     fuelPerProduct: 2
     conversionTime: 15
+```
+</details>
+
+Makes the smelter turn one copper ore into two copper. Its other conversions, and what it makes from copper ore, stay as they are.
+<details>
+  <summary>Yaml example</summary>
+
+```yaml
+conversionModifications:
+  double_copper:
+    prefab: smelter
+    action: Add
+    conversions:
+    - fromPrefab: CopperOre
+      amount: 2
 ```
 </details>
 

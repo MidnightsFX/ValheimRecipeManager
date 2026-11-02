@@ -51,7 +51,9 @@ namespace RecipeManager
                 };
                 foreach (Smelter.ItemConversion conversion in smelter.m_conversion ?? new List<Smelter.ItemConversion>()) {
                     if (conversion == null) { continue; }
-                    convMod.conversions.Add(new ConversionDef { fromPrefab = ItemName(conversion.m_from), toPrefab = ItemName(conversion.m_to) });
+                    // Left out at the game's own one item, so a station nothing has changed dumps as it always did
+                    int amount = ConversionUpdater.SmelterAmount(smelter, conversion);
+                    convMod.conversions.Add(new ConversionDef { fromPrefab = ItemName(conversion.m_from), toPrefab = ItemName(conversion.m_to), amount = amount > 1 ? amount : (int?)null });
                 }
                 AddDefinition(ConversionCollection, convMod);
             }

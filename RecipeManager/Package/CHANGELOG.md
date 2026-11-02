@@ -1,3 +1,10 @@
+ **0.12.2**
+---
+```
+- Smelters can now make more than one item from each input
+	- Warns when a conversion sets an item amount on a cooking station, which cannot use it
+```
+
  **0.12.1**
 ---
 ```

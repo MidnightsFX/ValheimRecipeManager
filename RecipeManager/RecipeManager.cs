@@ -15,7 +15,7 @@ namespace RecipeManager
     {
         public const string PluginGUID = "MidnightsFX.RecipeManager";
         public const string PluginName = "RecipeManager";
-        public const string PluginVersion = "0.12.1";
+        public const string PluginVersion = "0.12.2";
 
         public Common.ValConfig cfg;
         public static ManualLogSource Log;
@@ -29,6 +29,7 @@ namespace RecipeManager
             PatchManager.Register(Patches.RecipeStationLevelCap.Feature);
             PatchManager.Register(Patches.StatusEffectStatBonus.Feature);
             PatchManager.Register(Patches.PieceStationLevel.Feature);
+            PatchManager.Register(Patches.SmelterOutputAmount.Feature);
             cfg = new Common.ValConfig(Config);
             // Fires on every main menu. After playing on a server, this machine's own files apply again.
             PrefabManager.OnVanillaPrefabsAvailable += Common.ValConfig.ReloadLocalConfigs;

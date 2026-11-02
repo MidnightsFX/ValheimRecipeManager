@@ -301,15 +301,15 @@ namespace RecipeManager.Common
 #     prefab: charcoal_kiln
 #     maxOres: 30                    # <- Smelters, how many items it holds
 #     maxFuel: 0                     # <- Smelters and cooking stations, how much fuel it holds. 0 makes a smelter need no fuel
-#     fuelPerProduct: 1              # <- Smelters, fuel used for each item made
-#     conversionTime: 10             # <- Smelters, seconds per item. Fermenters, seconds per batch
+#     fuelPerProduct: 1              # <- Smelters, fuel used for each input
+#     conversionTime: 10             # <- Smelters, seconds per input. Fermenters, seconds per batch
 #     fuelItem: Wood                 # <- Smelters and cooking stations
 #     secPerFuel: 5000               # <- Cooking stations, seconds one fuel lasts
 #     overCookedItem: Coal           # <- Cooking stations, what food turns into when it is left on too long
 #     conversions:
 #       - fromPrefab: Wood
 #         toPrefab: Coal
-#         amount: 4                  # <- Fermenters, items made. Left out keeps the station's own, or 4
+#         amount: 4                  # <- Fermenters and smelters, items made from one input. Left out keeps the station's own, or 4 from a fermenter and 1 from a smelter
 #         cookTime: 10               # <- Cooking stations, seconds to cook. Left out keeps the station's own, or 10
 #     spawnStack: false              # <- Smelters, whether what it makes comes out as one stack
 #     requiresRoof: true             # <- Smelters, whether it only works under a roof

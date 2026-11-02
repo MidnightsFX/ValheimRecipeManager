@@ -32,6 +32,14 @@ namespace RecipeManager
         /// </summary>
         private static readonly Dictionary<string, ConversionSnapshot> OriginalByPrefab = new Dictionary<string, ConversionSnapshot>();
 
+        /// <summary>
+        /// How many items a smelter type station makes from one input, where that is more than the one the game makes, by
+        /// the station's prefab name and then by input. The game's conversions for these have no amount to write to, and a
+        /// station built in the world is a copy of its prefab holding only the fields the game saves, so it can not be kept
+        /// on the conversion. Read by <see cref="Patches.SmelterOutputAmount"/>.
+        /// </summary>
+        private static readonly Dictionary<string, Dictionary<string, int>> SmelterAmounts = new Dictionary<string, Dictionary<string, int>>();
+
         private static bool warnedOverCookedTime;
 
         /// <summary>Hooked to every new object DB in a world.</summary>
@@ -84,6 +92,49 @@ namespace RecipeManager
                         break;
                 }
             }
+            if (conv.convertType == ConversionType.Smelter) { UpdateSmelterAmounts(conv); }
+        }
+
+        /// <summary>
+        /// Follows what an entry just did to its station's conversions: a Modify keeps only the inputs it lists, and an amount
+        /// left out keeps the one the station already has for that input, or the one item the game makes. The entries are
+        /// applied more than once per world, and applying them again gives the same amounts.
+        /// </summary>
+        private static void UpdateSmelterAmounts(TrackedConversion conv) {
+            if (conv.conversions == null || conv.smelterComponent == null) { return; }
+            string prefab = conv.prefab.name;
+            Dictionary<string, int> current = SmelterAmounts.TryGetValue(prefab, out Dictionary<string, int> known) ? known : new Dictionary<string, int>();
+            Dictionary<string, int> updated = new Dictionary<string, int>(current);
+            if (conv.action == ConversionAction.Modify) {
+                updated.Clear();
+                foreach (ResolvedConversion entry in conv.conversions) {
+                    string input = InputName(entry.from);
+                    // A station only ever uses the first conversion for an input
+                    if (!updated.ContainsKey(input)) { updated[input] = entry.amount ?? (current.TryGetValue(input, out int kept) ? kept : 1); }
+                }
+            } else if (conv.action == ConversionAction.Add) {
+                foreach (ResolvedConversion entry in conv.conversions) {
+                    if (entry.amount.HasValue) { updated[InputName(entry.from)] = entry.amount.Value; }
+                }
+            }
+            // Only what the station still converts keeps an amount, which is also what a Remove leaves behind
+            List<Smelter.ItemConversion> conversions = conv.smelterComponent.m_conversion ?? new List<Smelter.ItemConversion>();
+            foreach (string input in updated.Keys.ToList()) {
+                if (updated[input] <= 1 || !conversions.Exists(e => e != null && InputName(e.m_from) == input)) { updated.Remove(input); }
+            }
+            if (updated.Count > 0) { SmelterAmounts[prefab] = updated; } else { SmelterAmounts.Remove(prefab); }
+        }
+
+        /// <summary>How many items a station makes from one input with this conversion.</summary>
+        internal static int SmelterAmount(Smelter station, Smelter.ItemConversion conversion) {
+            if (SmelterAmounts.Count == 0 || conversion == null) { return 1; }
+            if (!SmelterAmounts.TryGetValue(StationRef.PrefabNameOf(StationRoot(station)), out Dictionary<string, int> amounts)) { return 1; }
+            return amounts.TryGetValue(InputName(conversion.m_from), out int amount) ? amount : 1;
+        }
+
+        // A conversion with no input is a key of its own, the first of them is what the station makes from fuel alone
+        private static string InputName(ItemDrop input) {
+            return input != null ? input.gameObject.name : "";
         }
 
         /// <summary>
@@ -137,6 +188,7 @@ namespace RecipeManager
         /// this, which is what lets a conversion removed from the yaml actually disappear.
         /// </summary>
         public static void RevertConversionModifications() {
+            SmelterAmounts.Clear();
             if (OriginalConversions.Count == 0) { return; }
             Logger.LogInfo($"Reverting {OriginalConversions.Count} conversion modifications");
 
@@ -553,6 +605,8 @@ namespace RecipeManager
                 }
                 TrackedConversions.Add(tconv);
             }
+            // Which entries are for smelter type stations is only known from here on, and decides whether their patch is needed
+            PatchManager.Refresh();
 
             // Smelters are the one station that works with a side left out: the battering ram burns wood and
             // makes nothing, and the frost kiln makes frozen fuel from its fuel alone. Fermenters and cooking
@@ -584,12 +638,21 @@ namespace RecipeManager
                         return false;
                     }
                 }
+                int? amount = conv.amount;
+                if (amount.HasValue && tconv.action != ConversionAction.Remove) {
+                    if (tconv.convertType == ConversionType.CookingStation) {
+                        Logger.LogWarning($"{entry} sets an amount on its conversion from {conv.fromPrefab}, but cooking stations always make one item. It is ignored.");
+                    } else if (smelter && amount.Value < 1) {
+                        Logger.LogWarning($"{entry} has an amount of {amount.Value} on its conversion from {conv.fromPrefab} to {conv.toPrefab}, it must be at least 1 and will be ignored.");
+                        amount = null;
+                    }
+                }
                 resolved = new ResolvedConversion {
                     from = from,
                     to = to,
                     // A smelter conversion that names no output on a Modify makes nothing, on an Add or Remove it is left as it is
                     toGiven = !noTo || (smelter && tconv.action == ConversionAction.Modify),
-                    amount = conv.amount,
+                    amount = amount,
                     cookTime = conv.cookTime
                 };
                 return true;
